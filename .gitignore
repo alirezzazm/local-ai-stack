@@ -1,0 +1,17 @@
+# models & weights are downloaded, never committed
+*.gguf
+*.bin
+*.safetensors
+outputs/
+models/
+
+# python
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# logs / temp
+*.log
+.DS_Store
+Thumbs.db

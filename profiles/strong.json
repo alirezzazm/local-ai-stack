@@ -1,0 +1,12 @@
+{
+  "name": "strong",
+  "description": "Powerful workstation with a single modern GPU (e.g. RTX 4090, 24GB VRAM).",
+  "model": "qwen3.6:27b",
+  "alt_models": ["mistral-small3.1:24b", "qwen3.5:27b"],
+  "context_length": 16384,
+  "quantization": "Q4_K_M",
+  "min_ram_gb": 32,
+  "min_vram_gb": 24,
+  "gpu_required": true,
+  "notes": "Qwen 3.6 27B at Q4 fits in 24GB VRAM and is the strongest open-weight model on consumer hardware (mid-2026). Best multilingual/Persian support."
+}

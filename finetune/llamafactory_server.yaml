@@ -1,0 +1,28 @@
+# LLaMA-Factory config — for the `server` profile (multi-GPU full/LoRA fine-tune).
+# Install:  pip install llamafactory[torch,metrics]
+# Run:      llamafactory-cli train finetune/llamafactory_server.yaml
+#
+# Register data/dataset.jsonl in LLaMA-Factory's data/dataset_info.json as:
+#   "local_chat": { "file_name": "dataset.jsonl", "formatting": "sharegpt",
+#                   "columns": { "messages": "messages" },
+#                   "tags": { "role_tag": "role", "content_tag": "content",
+#                             "user_tag": "user", "assistant_tag": "assistant",
+#                             "system_tag": "system" } }
+
+model_name_or_path: Qwen/Qwen2.5-32B-Instruct
+stage: sft
+do_train: true
+finetuning_type: lora          # change to "full" if you have the VRAM
+lora_target: all
+
+dataset: local_chat
+template: qwen
+cutoff_len: 8192
+
+output_dir: outputs/server-sft
+per_device_train_batch_size: 1
+gradient_accumulation_steps: 8
+learning_rate: 1.0e-4
+num_train_epochs: 3.0
+bf16: true
+deepspeed: examples/deepspeed/ds_z3_config.json   # multi-GPU

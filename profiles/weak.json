@@ -1,0 +1,11 @@
+{
+  "name": "weak",
+  "description": "Laptop or CPU-only VPS. No GPU required.",
+  "model": "llama3.2:3b",
+  "alt_models": ["qwen2.5:3b", "phi3.5:3.8b"],
+  "context_length": 4096,
+  "quantization": "Q4_K_M",
+  "min_ram_gb": 8,
+  "gpu_required": false,
+  "notes": "Runs on CPU at a few tokens/sec. Best entry point. Used for end-to-end testing on this server."
+}

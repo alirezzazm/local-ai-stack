@@ -1,0 +1,12 @@
+{
+  "name": "server",
+  "description": "Very powerful server with one large or multiple GPUs (A100/H100 or multi-4090).",
+  "model": "qwen3.6:27b",
+  "alt_models": ["llama3.3:70b", "qwen3.5:72b"],
+  "context_length": 32768,
+  "quantization": "fp16",
+  "min_ram_gb": 64,
+  "min_vram_gb": 48,
+  "gpu_required": true,
+  "notes": "Full-precision 27B or a 70B+ model for maximum quality. Use multiple concurrent users. For production serving consider vLLM instead of Ollama."
+}
