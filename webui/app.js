@@ -258,6 +258,33 @@ $('persona-save').onclick = async () => {
   } catch (e) { $('persona-status').textContent = '⚠️ خطا: ' + e.message; }
 };
 
+// ---------- mission (autonomous agent) ----------
+$('mission-btn').onclick = () => $('mission-overlay').classList.remove('hidden');
+$('mission-close').onclick = () => $('mission-overlay').classList.add('hidden');
+$('mission-overlay').onclick = (e) => { if (e.target.id === 'mission-overlay') $('mission-overlay').classList.add('hidden'); };
+async function runMission() {
+  const goal = $('mission-goal').value.trim();
+  if (!goal) return;
+  const go = $('mission-go');
+  go.disabled = true;
+  $('mission-steps').innerHTML = ''; $('mission-answer').textContent = '';
+  $('mission-status').textContent = '🧠 DAZ در حال فکر کردن و اجرای گام‌ها… (روی CPU کمی طول می‌کشد)';
+  try {
+    const j = await (await fetch('/api/think', { method: 'POST',
+      headers: { 'content-type': 'application/json' }, body: JSON.stringify({ goal, persona: window.__persona || '' }) })).json();
+    (j.steps || []).forEach((s, i) => {
+      const d = document.createElement('div'); d.className = 'step';
+      d.innerHTML = `<span class="n">${i + 1}</span><div><div><span class="tool">${s.tool}</span> ${s.args ? JSON.stringify(s.args) : ''}</div><div class="res">↳ ${String(s.result).slice(0, 200)}</div></div>`;
+      $('mission-steps').appendChild(d);
+    });
+    $('mission-status').textContent = `✅ مأموریت تمام شد (${(j.steps || []).length} گام).`;
+    $('mission-answer').textContent = j.answer || '';
+  } catch (e) { $('mission-status').textContent = '⚠️ خطا: ' + e.message; }
+  finally { go.disabled = false; }
+}
+$('mission-go').onclick = runMission;
+$('mission-goal').addEventListener('keydown', (e) => { if (e.key === 'Enter') runMission(); });
+
 // ---------- live system usage ----------
 function barClass(p) { return p >= 85 ? 'bar hot' : p >= 60 ? 'bar warn' : 'bar'; }
 async function refreshStats() {

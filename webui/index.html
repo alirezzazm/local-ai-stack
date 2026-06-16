@@ -20,6 +20,7 @@
     <button type="button" id="learn-btn" class="learn-btn" title="جستجو در اینترنت و یادگیری">🌐 یادگیری</button>
     <button type="button" id="review-btn" class="review-btn" title="بازبینی و تأیید پاسخ‌ها">✅ بازبینی</button>
     <button type="button" id="persona-btn" class="persona-btn" title="شخصیت و پروفایل شخصی">👤 شخصیت</button>
+    <button type="button" id="mission-btn" class="mission-btn" title="یک هدف بده، خودش تصمیم می‌گیرد و انجام می‌دهد">🧠 مأموریت</button>
     <label class="model">
       مدل:
       <input id="model" value="daz" title="نام مدل متنی در Ollama" />
@@ -125,6 +126,24 @@
         <input id="srv-token" placeholder="DAZ_TOKEN" />
       </label>
       <button type="button" id="srv-save" class="review-save" style="background:#0ea5e9">🔌 ذخیره و اتصال</button>
+    </div>
+  </div>
+
+  <!-- Mission / autonomous agent panel -->
+  <div id="mission-overlay" class="overlay hidden">
+    <div class="panel">
+      <div class="panel-head">
+        <b>🧠 مأموریت — DAZ خودش تصمیم می‌گیرد</b>
+        <button type="button" id="mission-close" title="بستن">✕</button>
+      </div>
+      <p class="hint">یک هدف بده؛ DAZ گام‌به‌گام تصمیم می‌گیرد، ابزارها را اجرا می‌کند و نتیجه را می‌دهد. مثال: «هوای تهران را بگو و اگر آفتابی بود یک یادآور برای پیاده‌روی بگذار».</p>
+      <div class="learn-row">
+        <input id="mission-goal" placeholder="هدف مأموریت…" />
+        <button type="button" id="mission-go">اجرا</button>
+      </div>
+      <div id="mission-status" class="learn-status"></div>
+      <div id="mission-steps"></div>
+      <div id="mission-answer" class="learn-result"></div>
     </div>
   </div>
 

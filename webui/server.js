@@ -323,6 +323,38 @@ async function handleAgent(req, res) {
   sendJSON(res, 200, { content, actions });
 }
 
+// --- /api/think : autonomous agent loop (decide → act → observe, repeat) ---
+async function handleThink(req, res) {
+  const { goal, persona } = JSON.parse(await readBody(req) || '{}');
+  const MAX_STEPS = 6;
+  const sys = (persona || '') +
+    '\nتو یک عاملِ تصمیم‌گیر هستی. برای رسیدن به هدفِ کاربر گام‌به‌گام عمل کن: ' +
+    'در هر مرحله یا یک ابزار مناسب صدا بزن، یا اگر هدف کامل شد پاسخ نهاییِ فارسی بده (بدون صدا زدن ابزار). ' +
+    'فقط ابزارِ مرتبط را صدا بزن و کارهای تکراری نکن.';
+  const messages = [{ role: 'system', content: sys }, { role: 'user', content: goal }];
+  const steps = [];
+  let answer = '';
+  for (let i = 0; i < MAX_STEPS; i++) {
+    const r = await ollamaChat(messages, TOOLS);
+    let calls = r.message?.tool_calls || [];
+    let assistantMsg = r.message;
+    if (!calls.length) {
+      const parsed = parseTextToolCalls(r.message?.content || '');
+      if (parsed.length) { calls = parsed; assistantMsg = { role: 'assistant', content: '', tool_calls: parsed }; }
+    }
+    if (!calls.length) { answer = cleanText(r.message?.content); break; }   // agent decided it's done
+    messages.push(assistantMsg);
+    for (const tc of calls) {
+      const fn = tc.function || tc;
+      const out = await execTool(fn.name, fn.arguments || {});
+      steps.push({ tool: fn.name, args: fn.arguments, result: out });
+      messages.push({ role: 'tool', content: String(out) });
+    }
+  }
+  if (!answer) answer = steps.length ? steps.map(s => s.result).join('\n') : 'به نتیجه‌ای نرسیدم.';
+  sendJSON(res, 200, { steps, answer });
+}
+
 // --- /api/persona : the owner profile + personality (makes DAZ personal) ---
 const PERSONA_FILE = path.join(REPO, 'persona.json');
 const DEFAULT_PERSONA = { name: '', address: 'قربان', style: 'jarvis', notes: '' };
@@ -413,6 +445,7 @@ const server = http.createServer(async (req, res) => {
     if (req.url.startsWith('/api/forget')) return await handleForget(req, res);
     if (req.url.startsWith('/api/persona')) return await handlePersona(req, res);
     if (req.url.startsWith('/api/agent')) return await handleAgent(req, res);
+    if (req.url.startsWith('/api/think')) return await handleThink(req, res);
     if (req.url.startsWith('/api/refresh')) return await handleRefresh(req, res);
     if (req.url.startsWith('/api/reminders')) return sendJSON(res, 200, { due: getDueReminders() });
     if (req.url.startsWith('/api/stats')) return handleStats(res);
