@@ -47,12 +47,23 @@ async function send() {
   botSpan.parentElement.classList.add('typing');
   botSpan.textContent = '…';
 
+  // RAG: pull any learned knowledge relevant to this question
+  let sendMessages = history;
+  if (!hasImage && text) {
+    try {
+      const c = await (await fetch('/api/context', { method: 'POST',
+        headers: { 'content-type': 'application/json' }, body: JSON.stringify({ query: text }) })).json();
+      if (c.context) sendMessages = [{ role: 'system',
+        content: 'از دانشِ زیر که قبلاً یاد گرفته‌ای برای پاسخ استفاده کن:\n' + c.context }, ...history];
+    } catch {}
+  }
+
   let full = '';
   try {
     const resp = await fetch('/api/chat', {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ model, messages: history, stream: true }),
+      body: JSON.stringify({ model, messages: sendMessages, stream: true }),
     });
     if (!resp.ok) throw new Error('HTTP ' + resp.status);
 
@@ -150,3 +161,44 @@ input.addEventListener('keydown', (e) => {
 $('composer').addEventListener('submit', (e) => { e.preventDefault(); send(); });
 
 setupMic();
+
+// ---------- learn from the web ----------
+async function refreshKB() {
+  try {
+    const j = await (await fetch('/api/knowledge')).json();
+    const ul = $('kb-list');
+    ul.innerHTML = '';
+    if (!j.items.length) { ul.innerHTML = '<li style="color:var(--muted)">هنوز چیزی یاد نگرفته.</li>'; return; }
+    for (const it of j.items) {
+      const li = document.createElement('li');
+      li.textContent = '📄 ' + it.topic;
+      ul.appendChild(li);
+    }
+  } catch {}
+}
+$('learn-btn').onclick = () => { $('learn-overlay').classList.remove('hidden'); refreshKB(); };
+$('learn-close').onclick = () => $('learn-overlay').classList.add('hidden');
+$('learn-overlay').onclick = (e) => { if (e.target.id === 'learn-overlay') $('learn-overlay').classList.add('hidden'); };
+
+async function learn() {
+  const topic = $('learn-topic').value.trim();
+  if (!topic) return;
+  const go = $('learn-go'), status = $('learn-status'), result = $('learn-result');
+  go.disabled = true; result.textContent = '';
+  status.textContent = '🔎 در حال جستجو در اینترنت و خواندن صفحات… (ممکن است کمی طول بکشد)';
+  try {
+    const j = await (await fetch('/api/learn', { method: 'POST',
+      headers: { 'content-type': 'application/json' }, body: JSON.stringify({ topic }) })).json();
+    if (j.error) { status.textContent = '⚠️ ' + j.error; return; }
+    status.textContent = '✅ یاد گرفتم و ذخیره کردم. حالا می‌توانی درباره‌اش بپرسی.';
+    let html = j.summary + '\n\n— منابع —\n';
+    for (const s of (j.sources || [])) html += `• ${s.title}\n`;
+    result.textContent = html;
+    $('learn-topic').value = '';
+    refreshKB();
+  } catch (e) {
+    status.textContent = '⚠️ خطا: ' + e.message;
+  } finally { go.disabled = false; }
+}
+$('learn-go').onclick = learn;
+$('learn-topic').addEventListener('keydown', (e) => { if (e.key === 'Enter') learn(); });

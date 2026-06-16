@@ -15,3 +15,7 @@ venv/
 *.log
 .DS_Store
 Thumbs.db
+
+# learned knowledge is user data — keep the folder, ignore contents
+knowledge/*
+!knowledge/.gitkeep

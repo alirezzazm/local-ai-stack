@@ -11,6 +11,7 @@
     <div class="brand">DAZ</div>
     <div class="sub">دستیار هوش مصنوعی فارسی</div>
     <div class="spacer"></div>
+    <button type="button" id="learn-btn" class="learn-btn" title="جستجو در اینترنت و یادگیری">🌐 یادگیری</button>
     <label class="model">
       مدل:
       <input id="model" value="daz" title="نام مدل متنی در Ollama" />
@@ -25,6 +26,25 @@
   </header>
 
   <main id="chat"></main>
+
+  <!-- Learn panel -->
+  <div id="learn-overlay" class="overlay hidden">
+    <div class="panel">
+      <div class="panel-head">
+        <b>🌐 جستجو و یادگیری از اینترنت</b>
+        <button type="button" id="learn-close" title="بستن">✕</button>
+      </div>
+      <p class="hint">یک موضوع بنویس؛ DAZ در اینترنت جستجو می‌کند، می‌خواند، خلاصه می‌سازد و یاد می‌گیرد.</p>
+      <div class="learn-row">
+        <input id="learn-topic" placeholder="مثلاً: تاریخچه‌ی خودروسازی ایران" />
+        <button type="button" id="learn-go">جستجو و یادگیری</button>
+      </div>
+      <div id="learn-status" class="learn-status"></div>
+      <div id="learn-result" class="learn-result"></div>
+      <div class="kb-head">آموخته‌ها:</div>
+      <ul id="kb-list" class="kb-list"></ul>
+    </div>
+  </div>
 
   <div id="attach-bar" class="attach-bar hidden">
     <img id="attach-thumb" alt="" />

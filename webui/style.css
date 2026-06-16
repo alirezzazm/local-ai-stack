@@ -62,3 +62,35 @@ main {
 #composer button:hover { filter: brightness(1.15); }
 #mic-btn.recording { background: #dc2626; color: #fff; border: none; animation: pulse 1s infinite; }
 @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: .55; } }
+
+/* learn button + panel */
+.learn-btn {
+  background: #16a34a; color: #fff; border: none; border-radius: 8px;
+  padding: 6px 12px; cursor: pointer; font-family: inherit; font-size: 13px; font-weight: 700;
+}
+.learn-btn:hover { filter: brightness(1.1); }
+.overlay {
+  position: fixed; inset: 0; background: rgba(0,0,0,.6);
+  display: flex; align-items: center; justify-content: center; z-index: 10;
+}
+.overlay.hidden { display: none; }
+.panel {
+  background: var(--panel); border: 1px solid var(--border); border-radius: 14px;
+  width: min(640px, 92vw); max-height: 86vh; overflow-y: auto; padding: 18px;
+}
+.panel-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px; }
+.panel-head button { background: none; border: none; color: var(--muted); font-size: 18px; cursor: pointer; }
+.hint { color: var(--muted); font-size: 13px; margin: 4px 0 12px; }
+.learn-row { display: flex; gap: 8px; }
+.learn-row input {
+  flex: 1; background: var(--bg); color: var(--text); border: 1px solid var(--border);
+  border-radius: 8px; padding: 10px 12px; font-family: inherit; font-size: 14px;
+}
+.learn-row button { background: #16a34a; color: #fff; border: none; border-radius: 8px; padding: 0 16px; cursor: pointer; font-family: inherit; font-weight: 700; }
+.learn-row button:disabled { opacity: .5; cursor: default; }
+.learn-status { color: var(--muted); font-size: 13px; margin: 10px 0; min-height: 18px; }
+.learn-result { white-space: pre-wrap; line-height: 1.8; font-size: 14px; }
+.learn-result a { color: #60a5fa; }
+.kb-head { margin-top: 16px; color: var(--muted); font-size: 13px; border-top: 1px solid var(--border); padding-top: 10px; }
+.kb-list { list-style: none; padding: 0; margin: 6px 0 0; }
+.kb-list li { padding: 6px 0; border-bottom: 1px dashed var(--border); font-size: 14px; }
