@@ -17,6 +17,12 @@ const HOST = process.env.HOST || '0.0.0.0';        // 0.0.0.0 = reachable from o
 const TOKEN = process.env.DAZ_TOKEN || '';          // if set, /api/* requires this token
 const OLLAMA = process.env.OLLAMA_HOST || 'http://127.0.0.1:11434';
 const MODEL = process.env.DAZ_MODEL || 'daz';
+// backend: 'ollama' (default) or 'openai' (vLLM / any OpenAI-compatible server)
+const BACKEND = process.env.DAZ_BACKEND || 'ollama';
+const OPENAI_BASE = process.env.OPENAI_BASE || (OLLAMA + '/v1');
+const OPENAI_KEY = process.env.OPENAI_KEY || 'sk-no-key';
+const OPENAI_MODEL = process.env.OPENAI_MODEL || MODEL;
+const safeParse = (s) => { try { return typeof s === 'string' ? JSON.parse(s) : (s || {}); } catch { return {}; } };
 const DIR = __dirname;
 const KNOWLEDGE = path.join(DIR, '..', 'knowledge');
 const MIME = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8',
@@ -105,13 +111,19 @@ async function fetchText(url) {
 // chat keeps the bigger MODEL for quality. Override with DAZ_SUMMARY_MODEL.
 const SUMMARY_MODEL = process.env.DAZ_SUMMARY_MODEL || 'qwen2.5:3b';
 async function askDaz(prompt) {
+  const messages = [{ role: 'user', content: prompt }];
+  if (BACKEND === 'openai') {
+    const r = await fetch(OPENAI_BASE + '/chat/completions', {
+      method: 'POST', headers: { 'content-type': 'application/json', authorization: 'Bearer ' + OPENAI_KEY },
+      body: JSON.stringify({ model: OPENAI_MODEL, messages, stream: false }),
+    });
+    return (await r.json()).choices?.[0]?.message?.content || '';
+  }
   const r = await fetch(OLLAMA + '/api/chat', {
     method: 'POST', headers: { 'content-type': 'application/json' },
-    body: JSON.stringify({ model: SUMMARY_MODEL, stream: false,
-      messages: [{ role: 'user', content: prompt }] }),
+    body: JSON.stringify({ model: SUMMARY_MODEL, stream: false, messages }),
   });
-  const j = await r.json();
-  return j.message?.content || '';
+  return (await r.json()).message?.content || '';
 }
 
 // --- /api/learn ---
@@ -276,9 +288,19 @@ async function handleVerify(req, res) {
 
 // --- /api/agent : tool-using chat (DAZ can DO things, Jarvis-style) ---
 const { TOOLS, execTool, getDueReminders } = require('./tools')(REPO);
-function ollamaChat(messages, tools) {
-  return fetch(OLLAMA + '/api/chat', { method: 'POST', headers: { 'content-type': 'application/json' },
-    body: JSON.stringify({ model: MODEL, messages, tools, stream: false, options: { temperature: 0.1 } }) }).then(r => r.json());
+async function ollamaChat(messages, tools) {
+  if (BACKEND === 'openai') {
+    const r = await fetch(OPENAI_BASE + '/chat/completions', {
+      method: 'POST', headers: { 'content-type': 'application/json', authorization: 'Bearer ' + OPENAI_KEY },
+      body: JSON.stringify({ model: OPENAI_MODEL, messages, tools, stream: false, temperature: 0.1 }),
+    });
+    const m = (await r.json()).choices?.[0]?.message || {};
+    const tc = m.tool_calls ? m.tool_calls.map(c => ({ function: { name: c.function.name, arguments: safeParse(c.function.arguments) } })) : undefined;
+    return { message: { content: m.content || '', tool_calls: tc } };
+  }
+  const r = await fetch(OLLAMA + '/api/chat', { method: 'POST', headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ model: MODEL, messages, tools, stream: false, options: { temperature: 0.1 } }) });
+  return r.json();
 }
 // some small models emit tool calls as TEXT instead of structured tool_calls —
 // parse those too (e.g. <tool_call>{"name":"get_weather","arguments":{"city":"تهران"}}</tool_call>)
@@ -321,6 +343,37 @@ async function handleAgent(req, res) {
   let content = cleanText(final.message?.content);
   if (!content) content = actions.map(a => a.result).join(' ');   // fallback: report tool results
   sendJSON(res, 200, { content, actions });
+}
+
+// --- /api/chat : streaming chat, backend-agnostic (ollama native or OpenAI/vLLM) ---
+async function handleChat(req, res) {
+  const body = await readBody(req);
+  if (BACKEND === 'openai') {
+    const p = JSON.parse(body || '{}');
+    const r = await fetch(OPENAI_BASE + '/chat/completions', {
+      method: 'POST', headers: { 'content-type': 'application/json', authorization: 'Bearer ' + OPENAI_KEY },
+      body: JSON.stringify({ model: OPENAI_MODEL, messages: p.messages, stream: true }),
+    });
+    res.writeHead(200, { 'content-type': 'application/x-ndjson; charset=utf-8' });
+    const reader = r.body.getReader(); const dec = new TextDecoder(); let buf = '';
+    while (true) {
+      const { done, value } = await reader.read(); if (done) break;
+      buf += dec.decode(value, { stream: true }); const lines = buf.split('\n'); buf = lines.pop();
+      for (const ln of lines) {
+        const t = ln.trim(); if (!t.startsWith('data:')) continue;
+        const data = t.slice(5).trim();
+        if (data === '[DONE]') { res.write(JSON.stringify({ done: true }) + '\n'); continue; }
+        try { const piece = JSON.parse(data).choices?.[0]?.delta?.content || ''; if (piece) res.write(JSON.stringify({ message: { content: piece } }) + '\n'); } catch {}
+      }
+    }
+    return res.end();
+  }
+  // ollama backend: forward to Ollama's native streaming chat
+  const u = new URL(OLLAMA + '/api/chat');
+  const proxy = http.request({ hostname: u.hostname, port: u.port, path: u.pathname, method: 'POST', headers: { 'content-type': 'application/json' } },
+    (pr) => { res.writeHead(pr.statusCode, pr.headers); pr.pipe(res); });
+  proxy.on('error', (e) => { res.writeHead(502); res.end(JSON.stringify({ error: String(e) })); });
+  proxy.end(body);
 }
 
 // --- /api/think : autonomous agent loop (decide → act → observe, repeat) ---
@@ -439,6 +492,7 @@ const server = http.createServer(async (req, res) => {
       const t = req.headers['x-daz-token'] || new URL('http://x' + req.url).searchParams.get('token');
       if (t !== TOKEN) { res.writeHead(401, { 'content-type': 'application/json' }); return res.end(JSON.stringify({ error: 'unauthorized' })); }
     }
+    if (req.url.startsWith('/api/chat')) return await handleChat(req, res);
     if (req.url.startsWith('/api/learn')) return await handleLearn(req, res);
     if (req.url.startsWith('/api/quiz')) return await handleQuiz(req, res);
     if (req.url.startsWith('/api/verify')) return await handleVerify(req, res);

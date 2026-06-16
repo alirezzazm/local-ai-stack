@@ -4,8 +4,12 @@
 # Usage: ./scripts/setup.sh [weak|strong|server]
 set -euo pipefail
 
-PROFILE="${1:-weak}"
+PROFILE="${1:-auto}"
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+if [ "$PROFILE" = "auto" ]; then
+  echo "==> Detecting hardware..."
+  PROFILE="$(bash "$(dirname "${BASH_SOURCE[0]}")/detect.sh")"
+fi
 CFG="$ROOT/profiles/$PROFILE.json"
 [ -f "$CFG" ] || { echo "Profile not found: $CFG"; exit 1; }
 

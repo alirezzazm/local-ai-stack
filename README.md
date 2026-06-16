@@ -19,6 +19,16 @@
 
 ---
 
+## سیستم‌های بزرگ (GPU / چند کاربر)
+- **تشخیص خودکار سخت‌افزار:** `./scripts/setup.ps1 -Profile auto` (یا `setup.sh auto`) خودش GPU/VRAM/RAM را می‌خواند و پروفایل مناسب (weak/strong/server) را انتخاب می‌کند. تست مستقل: `./scripts/detect.ps1`.
+- **سرو با vLLM (چند کاربر، توان بالا):** روی سرور GPU‌دار، به‌جای Ollama از vLLM استفاده کن:
+  ```bash
+  ./scripts/serve-vllm.sh Qwen/Qwen2.5-32B-Instruct
+  DAZ_BACKEND=openai OPENAI_BASE=http://localhost:8000/v1 OPENAI_MODEL=daz DAZ_TOKEN=رمز ./scripts/webui.sh
+  ```
+  یا با داکر: `docker compose -f docker-compose.vllm.yml up`.
+- DAZ **مستقل از موتور** است: `DAZ_BACKEND=ollama` (پیش‌فرض) یا `openai` (vLLM یا هر API سازگار با OpenAI). چت، ابزارها و مأموریت روی هر دو کار می‌کنند.
+
 ## نصب و اجرا
 
 ### ویندوز (PowerShell)

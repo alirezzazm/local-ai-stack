@@ -7,12 +7,16 @@
   ./scripts/setup.ps1 -Profile weak
 #>
 param(
-  [ValidateSet('weak','strong','server')]
-  [string]$Profile = 'weak'
+  [ValidateSet('auto','weak','strong','server')]
+  [string]$Profile = 'auto'
 )
 
 $ErrorActionPreference = 'Stop'
 $root = Split-Path -Parent $PSScriptRoot
+if ($Profile -eq 'auto') {
+  Write-Host "==> Detecting hardware..." -ForegroundColor Yellow
+  $Profile = (& (Join-Path $PSScriptRoot 'detect.ps1') | Select-Object -Last 1).Trim()
+}
 $profilePath = Join-Path $root "profiles/$Profile.json"
 if (-not (Test-Path $profilePath)) { throw "Profile not found: $profilePath" }
 $cfg = Get-Content $profilePath -Raw | ConvertFrom-Json
