@@ -13,6 +13,8 @@ const zlib = require('zlib');
 const { exec } = require('child_process');
 
 const PORT = process.env.PORT || 8080;
+const HOST = process.env.HOST || '0.0.0.0';        // 0.0.0.0 = reachable from other devices
+const TOKEN = process.env.DAZ_TOKEN || '';          // if set, /api/* requires this token
 const OLLAMA = process.env.OLLAMA_HOST || 'http://127.0.0.1:11434';
 const MODEL = process.env.DAZ_MODEL || 'daz';
 const DIR = __dirname;
@@ -364,6 +366,13 @@ async function handleContext(req, res) {
 
 const server = http.createServer(async (req, res) => {
   try {
+    // tells the client whether a token is required (no auth needed for this)
+    if (req.url.startsWith('/api/ping')) return sendJSON(res, 200, { ok: true, auth: !!TOKEN });
+    // auth gate: when DAZ_TOKEN is set, every /api/* call must present it
+    if (TOKEN && req.url.startsWith('/api/')) {
+      const t = req.headers['x-daz-token'] || new URL('http://x' + req.url).searchParams.get('token');
+      if (t !== TOKEN) { res.writeHead(401, { 'content-type': 'application/json' }); return res.end(JSON.stringify({ error: 'unauthorized' })); }
+    }
     if (req.url.startsWith('/api/learn')) return await handleLearn(req, res);
     if (req.url.startsWith('/api/quiz')) return await handleQuiz(req, res);
     if (req.url.startsWith('/api/verify')) return await handleVerify(req, res);
@@ -391,4 +400,7 @@ const server = http.createServer(async (req, res) => {
   } catch (e) { sendJSON(res, 500, { error: String(e) }); }
 });
 
-server.listen(PORT, () => console.log(`DAZ UI running →  http://localhost:${PORT}`));
+server.listen(PORT, HOST, () => {
+  console.log(`DAZ UI running →  http://localhost:${PORT}  (bound to ${HOST})`);
+  if (!TOKEN) console.log('⚠️  DAZ_TOKEN not set — anyone who can reach this port can use DAZ. Set DAZ_TOKEN before exposing it.');
+});

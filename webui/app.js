@@ -1,4 +1,25 @@
 // DAZ chat UI — talks to Ollama through the local proxy (/api/chat).
+// --- auth: attach the saved token to every /api request ---
+const _fetch = window.fetch.bind(window);
+window.fetch = (url, opts = {}) => {
+  if (typeof url === 'string' && url.startsWith('/api/')) {
+    opts.headers = { ...(opts.headers || {}), 'x-daz-token': localStorage.getItem('daz_token') || '' };
+  }
+  return _fetch(url, opts);
+};
+// ask for the token once if the server requires one
+(async () => {
+  try {
+    const p = await (await _fetch('/api/ping')).json();
+    if (p.auth && !localStorage.getItem('daz_token')) {
+      const t = prompt('این DAZ با رمز محافظت می‌شود. توکن دسترسی را وارد کن:');
+      if (t) localStorage.setItem('daz_token', t.trim());
+    }
+  } catch {}
+})();
+// register the service worker so DAZ is installable as an app
+if ('serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js').catch(() => {});
+
 const $ = (id) => document.getElementById(id);
 const chat = $('chat');
 const input = $('input');
