@@ -8,6 +8,7 @@
 const http = require('http');
 const fs = require('fs');
 const path = require('path');
+const os = require('os');
 
 const PORT = process.env.PORT || 8080;
 const OLLAMA = process.env.OLLAMA_HOST || 'http://127.0.0.1:11434';
@@ -80,6 +81,33 @@ async function handleLearn(req, res) {
   sendJSON(res, 200, { topic, summary, sources: results });
 }
 
+// --- /api/stats (live system usage of the host running the model) ---
+let prevCpu = null;
+function cpuSnapshot() {
+  let idle = 0, total = 0;
+  for (const c of os.cpus()) { for (const t in c.times) total += c.times[t]; idle += c.times.idle; }
+  return { idle, total };
+}
+function handleStats(res) {
+  const now = cpuSnapshot();
+  let cpuPct = 0;
+  if (prevCpu) {
+    const dIdle = now.idle - prevCpu.idle, dTotal = now.total - prevCpu.total;
+    cpuPct = dTotal > 0 ? Math.max(0, Math.min(100, Math.round(100 * (1 - dIdle / dTotal)))) : 0;
+  }
+  prevCpu = now;
+  const totalRam = os.totalmem(), freeRam = os.freemem(), usedRam = totalRam - freeRam;
+  sendJSON(res, 200, {
+    cpu: cpuPct,
+    cores: os.cpus().length,
+    ramUsedGB: +(usedRam / 1073741824).toFixed(1),
+    ramTotalGB: +(totalRam / 1073741824).toFixed(1),
+    ramPct: Math.round(100 * usedRam / totalRam),
+    platform: os.platform(),
+    uptimeMin: Math.round(os.uptime() / 60),
+  });
+}
+
 // --- /api/knowledge (list) ---
 function handleKnowledge(res) {
   const files = fs.existsSync(KNOWLEDGE) ? fs.readdirSync(KNOWLEDGE).filter(f => f.endsWith('.md')) : [];
@@ -109,6 +137,7 @@ async function handleContext(req, res) {
 const server = http.createServer(async (req, res) => {
   try {
     if (req.url.startsWith('/api/learn')) return await handleLearn(req, res);
+    if (req.url.startsWith('/api/stats')) return handleStats(res);
     if (req.url.startsWith('/api/knowledge')) return handleKnowledge(res);
     if (req.url.startsWith('/api/context')) return await handleContext(req, res);
     if (req.url.startsWith('/api/')) {            // proxy everything else to Ollama

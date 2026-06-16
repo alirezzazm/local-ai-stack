@@ -64,6 +64,16 @@ main {
 @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: .55; } }
 
 /* learn button + panel */
+.stats {
+  display: flex; gap: 10px; align-items: center; font-size: 12px; color: var(--muted);
+  background: var(--bg); border: 1px solid var(--border); border-radius: 8px; padding: 5px 10px;
+  font-variant-numeric: tabular-nums; white-space: nowrap;
+}
+.stats b { color: var(--text); font-weight: 600; }
+.stats .bar { width: 46px; height: 6px; border-radius: 3px; background: var(--border); overflow: hidden; }
+.stats .bar > span { display: block; height: 100%; background: #16a34a; }
+.stats .bar.warn > span { background: #f59e0b; }
+.stats .bar.hot > span { background: #dc2626; }
 .learn-btn {
   background: #16a34a; color: #fff; border: none; border-radius: 8px;
   padding: 6px 12px; cursor: pointer; font-family: inherit; font-size: 13px; font-weight: 700;

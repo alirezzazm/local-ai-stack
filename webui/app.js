@@ -162,6 +162,20 @@ $('composer').addEventListener('submit', (e) => { e.preventDefault(); send(); })
 
 setupMic();
 
+// ---------- live system usage ----------
+function barClass(p) { return p >= 85 ? 'bar hot' : p >= 60 ? 'bar warn' : 'bar'; }
+async function refreshStats() {
+  try {
+    const s = await (await fetch('/api/stats')).json();
+    $('stats').innerHTML =
+      `🖥️ CPU <b>${s.cpu}%</b> <span class="${barClass(s.cpu)}"><span style="width:${s.cpu}%"></span></span>` +
+      ` | RAM <b>${s.ramUsedGB}</b>/${s.ramTotalGB}GB <span class="${barClass(s.ramPct)}"><span style="width:${s.ramPct}%"></span></span>` +
+      ` | ${s.cores} هسته`;
+  } catch { $('stats').textContent = '—'; }
+}
+refreshStats();
+setInterval(refreshStats, 3000);
+
 // ---------- learn from the web ----------
 async function refreshKB() {
   try {
