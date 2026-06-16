@@ -243,6 +243,82 @@ async function handleVerify(req, res) {
   sendJSON(res, 200, { saved: good.length });
 }
 
+// --- /api/agent : tool-using chat (DAZ can DO things, Jarvis-style) ---
+const TOOLS = [
+  { type: 'function', function: { name: 'get_datetime', description: 'تاریخ و ساعت فعلی را برمی‌گرداند', parameters: { type: 'object', properties: {} } } },
+  { type: 'function', function: { name: 'get_weather', description: 'آب‌وهوای یک شهر', parameters: { type: 'object', properties: { city: { type: 'string', description: 'نام شهر' } }, required: ['city'] } } },
+  { type: 'function', function: { name: 'open_url', description: 'باز کردن یک آدرس اینترنتی در مرورگر سیستم', parameters: { type: 'object', properties: { url: { type: 'string' } }, required: ['url'] } } },
+  { type: 'function', function: { name: 'open_app', description: 'باز کردن یک برنامه روی سیستم (مثلاً notepad، calc، chrome)', parameters: { type: 'object', properties: { name: { type: 'string' } }, required: ['name'] } } },
+];
+async function execTool(name, args) {
+  try {
+    if (name === 'get_datetime') return new Date().toLocaleString('fa-IR');
+    if (name === 'get_weather') {
+      const r = await fetch('https://wttr.in/' + encodeURIComponent(args.city) + '?format=j1', { signal: AbortSignal.timeout(10000) });
+      const c = (await r.json()).current_condition[0];
+      return `${args.city}: دمای ${c.temp_C}°C، ${c.weatherDesc[0].value}، رطوبت ${c.humidity}٪`;
+    }
+    if (name === 'open_url') {
+      let u = String(args.url); if (!/^https?:\/\//.test(u)) u = 'https://' + u;
+      if (!/^https?:\/\/[\w.-]+/.test(u)) return 'آدرس نامعتبر';
+      exec(`start "" "${u.replace(/"/g, '')}"`, { cwd: REPO, windowsHide: true });
+      return 'باز شد: ' + u;
+    }
+    if (name === 'open_app') {
+      const app = String(args.name).replace(/[&|<>"^]/g, '');
+      exec(`start "" "${app}"`, { windowsHide: true });
+      return 'تلاش برای باز کردن برنامه: ' + app;
+    }
+    return 'ابزار ناشناخته';
+  } catch (e) { return 'خطا در اجرا: ' + e.message; }
+}
+function ollamaChat(messages, tools) {
+  return fetch(OLLAMA + '/api/chat', { method: 'POST', headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ model: MODEL, messages, tools, stream: false, options: { temperature: 0.1 } }) }).then(r => r.json());
+}
+// some small models emit tool calls as TEXT instead of structured tool_calls —
+// parse those too (e.g. <tool_call>{"name":"get_weather","arguments":{"city":"تهران"}}</tool_call>)
+function parseTextToolCalls(content) {
+  const calls = [];
+  if (!content) return calls;
+  const re = /\{[^{}]*"name"\s*:\s*"([^"]+)"[^{}]*"arguments"\s*:\s*(\{[^{}]*\})[^{}]*\}/g;
+  let m;
+  while ((m = re.exec(content))) {
+    let args = {}; try { args = JSON.parse(m[2]); } catch {}
+    calls.push({ function: { name: m[1], arguments: args } });
+  }
+  return calls;
+}
+const cleanText = (s) => String(s || '')
+  .replace(/<tool_call>[\s\S]*?<\/tool_call>/g, '')
+  .replace(/\{[^{}]*"name"\s*:[\s\S]*?\}\s*\}/g, '')
+  .replace(/<\/?tool_call>/g, '').trim();
+
+async function handleAgent(req, res) {
+  const { messages } = JSON.parse(await readBody(req) || '{}');
+  const first = await ollamaChat(messages, TOOLS);
+  let calls = first.message?.tool_calls || [];
+  let assistantMsg = first.message;
+  if (!calls.length) {
+    const parsed = parseTextToolCalls(first.message?.content || '');
+    if (parsed.length) { calls = parsed; assistantMsg = { role: 'assistant', content: '', tool_calls: parsed }; }
+  }
+  if (!calls.length) return sendJSON(res, 200, { content: cleanText(first.message?.content) || '', actions: [] });
+
+  const msgs = [...messages, assistantMsg];
+  const actions = [];
+  for (const tc of calls) {
+    const fn = tc.function || tc;
+    const out = await execTool(fn.name, fn.arguments || {});
+    actions.push({ name: fn.name, args: fn.arguments, result: out });
+    msgs.push({ role: 'tool', content: String(out) });
+  }
+  const final = await ollamaChat(msgs, TOOLS);
+  let content = cleanText(final.message?.content);
+  if (!content) content = actions.map(a => a.result).join(' ');   // fallback: report tool results
+  sendJSON(res, 200, { content, actions });
+}
+
 // --- /api/persona : the owner profile + personality (makes DAZ personal) ---
 const PERSONA_FILE = path.join(REPO, 'persona.json');
 const DEFAULT_PERSONA = { name: '', address: 'قربان', style: 'jarvis', notes: '' };
@@ -320,6 +396,7 @@ const server = http.createServer(async (req, res) => {
     if (req.url.startsWith('/api/verify')) return await handleVerify(req, res);
     if (req.url.startsWith('/api/forget')) return await handleForget(req, res);
     if (req.url.startsWith('/api/persona')) return await handlePersona(req, res);
+    if (req.url.startsWith('/api/agent')) return await handleAgent(req, res);
     if (req.url.startsWith('/api/stats')) return handleStats(res);
     if (req.url.startsWith('/api/knowledge')) return handleKnowledge(res);
     if (req.url.startsWith('/api/context')) return await handleContext(req, res);

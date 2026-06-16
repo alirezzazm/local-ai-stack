@@ -60,6 +60,27 @@ async function send() {
   }
   const sendMessages = sys.length ? [...sys, ...history] : history;
 
+  // Agent mode: let DAZ use tools (time, weather, open url/app). Non-streaming.
+  if ($('actions').checked) {
+    try {
+      const j = await (await fetch('/api/agent', { method: 'POST',
+        headers: { 'content-type': 'application/json' }, body: JSON.stringify({ messages: sendMessages }) })).json();
+      botSpan.parentElement.classList.remove('typing');
+      botSpan.textContent = j.content || '(بدون پاسخ)';
+      if (j.actions && j.actions.length) {
+        const meta = document.createElement('div'); meta.className = 'meta';
+        meta.textContent = '⚙️ ' + j.actions.map(a => a.name + (a.result ? ': ' + a.result : '')).join(' | ');
+        botSpan.parentElement.appendChild(meta);
+      }
+      history.push({ role: 'assistant', content: j.content || '' });
+      if ($('tts').checked && j.content) speak(j.content);
+    } catch (e) {
+      botSpan.parentElement.classList.remove('typing');
+      botSpan.textContent = '⚠️ خطا: ' + e.message;
+    }
+    return;
+  }
+
   let full = '';
   let stats = null;
   try {
