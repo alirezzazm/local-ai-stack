@@ -238,6 +238,19 @@ async function refreshStats() {
 refreshStats();
 setInterval(refreshStats, 3000);
 
+// ---------- due reminders ----------
+async function checkReminders() {
+  try {
+    const j = await (await fetch('/api/reminders')).json();
+    for (const r of (j.due || [])) {
+      const txt = '⏰ یادآوری: ' + r.text;
+      addBubble('bot', txt);
+      if (window.speechSynthesis) speak(txt);
+    }
+  } catch {}
+}
+setInterval(checkReminders, 10000);
+
 // ---------- learn from the web ----------
 async function refreshKB() {
   try {

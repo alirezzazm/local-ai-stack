@@ -244,34 +244,7 @@ async function handleVerify(req, res) {
 }
 
 // --- /api/agent : tool-using chat (DAZ can DO things, Jarvis-style) ---
-const TOOLS = [
-  { type: 'function', function: { name: 'get_datetime', description: 'تاریخ و ساعت فعلی را برمی‌گرداند', parameters: { type: 'object', properties: {} } } },
-  { type: 'function', function: { name: 'get_weather', description: 'آب‌وهوای یک شهر', parameters: { type: 'object', properties: { city: { type: 'string', description: 'نام شهر' } }, required: ['city'] } } },
-  { type: 'function', function: { name: 'open_url', description: 'باز کردن یک آدرس اینترنتی در مرورگر سیستم', parameters: { type: 'object', properties: { url: { type: 'string' } }, required: ['url'] } } },
-  { type: 'function', function: { name: 'open_app', description: 'باز کردن یک برنامه روی سیستم (مثلاً notepad، calc، chrome)', parameters: { type: 'object', properties: { name: { type: 'string' } }, required: ['name'] } } },
-];
-async function execTool(name, args) {
-  try {
-    if (name === 'get_datetime') return new Date().toLocaleString('fa-IR');
-    if (name === 'get_weather') {
-      const r = await fetch('https://wttr.in/' + encodeURIComponent(args.city) + '?format=j1', { signal: AbortSignal.timeout(10000) });
-      const c = (await r.json()).current_condition[0];
-      return `${args.city}: دمای ${c.temp_C}°C، ${c.weatherDesc[0].value}، رطوبت ${c.humidity}٪`;
-    }
-    if (name === 'open_url') {
-      let u = String(args.url); if (!/^https?:\/\//.test(u)) u = 'https://' + u;
-      if (!/^https?:\/\/[\w.-]+/.test(u)) return 'آدرس نامعتبر';
-      exec(`start "" "${u.replace(/"/g, '')}"`, { cwd: REPO, windowsHide: true });
-      return 'باز شد: ' + u;
-    }
-    if (name === 'open_app') {
-      const app = String(args.name).replace(/[&|<>"^]/g, '');
-      exec(`start "" "${app}"`, { windowsHide: true });
-      return 'تلاش برای باز کردن برنامه: ' + app;
-    }
-    return 'ابزار ناشناخته';
-  } catch (e) { return 'خطا در اجرا: ' + e.message; }
-}
+const { TOOLS, execTool, getDueReminders } = require('./tools')(REPO);
 function ollamaChat(messages, tools) {
   return fetch(OLLAMA + '/api/chat', { method: 'POST', headers: { 'content-type': 'application/json' },
     body: JSON.stringify({ model: MODEL, messages, tools, stream: false, options: { temperature: 0.1 } }) }).then(r => r.json());
@@ -397,6 +370,7 @@ const server = http.createServer(async (req, res) => {
     if (req.url.startsWith('/api/forget')) return await handleForget(req, res);
     if (req.url.startsWith('/api/persona')) return await handlePersona(req, res);
     if (req.url.startsWith('/api/agent')) return await handleAgent(req, res);
+    if (req.url.startsWith('/api/reminders')) return sendJSON(res, 200, { due: getDueReminders() });
     if (req.url.startsWith('/api/stats')) return handleStats(res);
     if (req.url.startsWith('/api/knowledge')) return handleKnowledge(res);
     if (req.url.startsWith('/api/context')) return await handleContext(req, res);
