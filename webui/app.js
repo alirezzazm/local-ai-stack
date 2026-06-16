@@ -307,6 +307,16 @@ async function refreshKB() {
   } catch {}
 }
 $('learn-btn').onclick = () => { $('learn-overlay').classList.remove('hidden'); refreshKB(); };
+$('refresh-btn').onclick = async () => {
+  const btn = $('refresh-btn');
+  btn.disabled = true; $('learn-status').textContent = '🔄 در حال به‌روزرسانی دانش از اینترنت… (ممکن است طول بکشد)';
+  try {
+    const j = await (await fetch('/api/refresh', { method: 'POST' })).json();
+    $('learn-status').textContent = j.updated ? `✅ ${j.updated} موضوع به‌روز شد: ${j.topics.join('، ')}` : 'موضوعِ قابل‌به‌روزرسانی (از اینترنت) پیدا نشد.';
+    refreshKB();
+  } catch (e) { $('learn-status').textContent = '⚠️ خطا: ' + e.message; }
+  finally { btn.disabled = false; }
+};
 $('learn-close').onclick = () => $('learn-overlay').classList.add('hidden');
 $('learn-overlay').onclick = (e) => { if (e.target.id === 'learn-overlay') $('learn-overlay').classList.add('hidden'); };
 

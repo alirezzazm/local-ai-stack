@@ -101,10 +101,13 @@ async function fetchText(url) {
   } catch { return ''; }
 }
 
+// summarization/learning uses a lighter, faster model by default (CPU-friendly);
+// chat keeps the bigger MODEL for quality. Override with DAZ_SUMMARY_MODEL.
+const SUMMARY_MODEL = process.env.DAZ_SUMMARY_MODEL || 'qwen2.5:3b';
 async function askDaz(prompt) {
   const r = await fetch(OLLAMA + '/api/chat', {
     method: 'POST', headers: { 'content-type': 'application/json' },
-    body: JSON.stringify({ model: MODEL, stream: false,
+    body: JSON.stringify({ model: SUMMARY_MODEL, stream: false,
       messages: [{ role: 'user', content: prompt }] }),
   });
   const j = await r.json();
@@ -155,6 +158,32 @@ async function handleLearn(req, res) {
   fs.writeFileSync(path.join(KNOWLEDGE, slug(title) + '.md'), md, 'utf-8');
   gitSync(title);
   sendJSON(res, 200, { topic: title, summary, sources });
+}
+
+// --- /api/refresh : re-learn every web-sourced topic so knowledge stays current ---
+async function handleRefresh(req, res) {
+  const files = fs.existsSync(KNOWLEDGE) ? fs.readdirSync(KNOWLEDGE).filter(f => f.endsWith('.md') && !f.startsWith('verified-')) : [];
+  const updated = [];
+  for (const f of files) {
+    const txt = fs.readFileSync(path.join(KNOWLEDGE, f), 'utf-8');
+    if (!/https?:\/\//.test(txt)) continue;            // only refresh web-sourced topics
+    const topic = (txt.match(/topic:\s*(.+)/) || [, ''])[1].trim();
+    if (!topic) continue;
+    try {
+      const results = await searchWeb(topic, 5);
+      if (!results.length) continue;
+      let corpus = '';
+      for (const r of results) corpus += `\n[منبع: ${r.title}]\n${await fetchText(r.url)}\n`;
+      const summary = await askDaz(
+        `بر اساس متن‌های زیر، یک خلاصه‌ی به‌روز و دقیق فارسی درباره‌ی «${topic}» بنویس (فقط حقایق مهم و تازه):\n${corpus.slice(0, 8000)}`);
+      const srcMd = results.map(r => `- ${r.title}: ${r.url}`).join('\n');
+      fs.writeFileSync(path.join(KNOWLEDGE, f),
+        `---\ntopic: ${topic}\ndate: ${new Date().toISOString()}\nupdated: true\n---\n\n${summary}\n\n## منابع\n${srcMd}\n`, 'utf-8');
+      updated.push(topic);
+    } catch {}
+  }
+  if (updated.length) gitSync('refresh ' + updated.length + ' topics');
+  sendJSON(res, 200, { updated: updated.length, topics: updated });
 }
 
 // --- /api/stats (live system usage of the host running the model) ---
@@ -384,6 +413,7 @@ const server = http.createServer(async (req, res) => {
     if (req.url.startsWith('/api/forget')) return await handleForget(req, res);
     if (req.url.startsWith('/api/persona')) return await handlePersona(req, res);
     if (req.url.startsWith('/api/agent')) return await handleAgent(req, res);
+    if (req.url.startsWith('/api/refresh')) return await handleRefresh(req, res);
     if (req.url.startsWith('/api/reminders')) return sendJSON(res, 200, { due: getDueReminders() });
     if (req.url.startsWith('/api/stats')) return handleStats(res);
     if (req.url.startsWith('/api/knowledge')) return handleKnowledge(res);

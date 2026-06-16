@@ -141,5 +141,7 @@ main {
 .kb-head { margin-top: 16px; color: var(--muted); font-size: 13px; border-top: 1px solid var(--border); padding-top: 10px; }
 .kb-list { list-style: none; padding: 0; margin: 6px 0 0; }
 .kb-list li { padding: 6px 0; border-bottom: 1px dashed var(--border); font-size: 14px; display: flex; align-items: center; justify-content: space-between; }
+.refresh-btn { background: #0ea5e9; color: #fff; border: none; border-radius: 8px; padding: 5px 10px; cursor: pointer; font-family: inherit; font-size: 12px; font-weight: 700; }
+.refresh-btn:disabled { opacity: .5; cursor: default; }
 .kb-del { background: none; border: none; cursor: pointer; font-size: 14px; opacity: .6; }
 .kb-del:hover { opacity: 1; }
