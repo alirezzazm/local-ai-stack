@@ -16,6 +16,4 @@ venv/
 .DS_Store
 Thumbs.db
 
-# learned knowledge is user data — keep the folder, ignore contents
-knowledge/*
-!knowledge/.gitkeep
+# learned knowledge IS synced to git (auto-pushed after each learn/verify)

@@ -9,6 +9,7 @@ const http = require('http');
 const fs = require('fs');
 const path = require('path');
 const os = require('os');
+const { exec } = require('child_process');
 
 const PORT = process.env.PORT || 8080;
 const OLLAMA = process.env.OLLAMA_HOST || 'http://127.0.0.1:11434';
@@ -19,6 +20,24 @@ const MIME = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; cha
   '.css': 'text/css; charset=utf-8', '.svg': 'image/svg+xml' };
 
 fs.mkdirSync(KNOWLEDGE, { recursive: true });
+
+const REPO = path.join(DIR, '..');
+// Auto-commit & push learned knowledge / dataset. Uses the machine's existing
+// git credentials. No-ops silently if not a git repo or push isn't authorized.
+let syncing = false;
+function gitSync(msg) {
+  if (process.env.DAZ_GIT_SYNC === '0') return;
+  if (syncing || !fs.existsSync(path.join(REPO, '.git'))) return;
+  syncing = true;
+  const safe = String(msg).replace(/["`$\\]/g, '').slice(0, 100);
+  const cmd = `git add knowledge data/dataset.jsonl && ` +
+    `git -c user.name="DAZ" -c user.email="daz@local" commit -m "learn: ${safe}" && git push`;
+  exec(cmd, { cwd: REPO, windowsHide: true }, (err, so, se) => {
+    syncing = false;
+    if (err) console.error('[git-sync] skipped:', String(se || err.message).split('\n')[0]);
+    else console.log('[git-sync] pushed →', safe);
+  });
+}
 
 const readBody = (req) => new Promise((res) => { let b = ''; req.on('data', c => b += c); req.on('end', () => res(b)); });
 const sendJSON = (res, code, obj) => { res.writeHead(code, { 'content-type': 'application/json; charset=utf-8' }); res.end(JSON.stringify(obj)); };
@@ -100,6 +119,7 @@ async function handleLearn(req, res) {
   const srcMd = sources.map(s => `- ${s.title}${s.url ? ': ' + s.url : ''}`).join('\n');
   const md = `---\ntopic: ${title}\ndate: ${new Date().toISOString()}\n---\n\n${summary}\n\n## منابع\n${srcMd}\n`;
   fs.writeFileSync(path.join(KNOWLEDGE, slug(title) + '.md'), md, 'utf-8');
+  gitSync(title);
   sendJSON(res, 200, { topic: title, summary, sources });
 }
 
@@ -187,6 +207,7 @@ async function handleVerify(req, res) {
   const md = `---\ntopic: ${topic} (تأییدشده)\ndate: ${new Date().toISOString()}\n---\n\n` +
     good.map(it => `**س:** ${it.q}\n**ج:** ${it.a}`).join('\n\n') + '\n';
   fs.writeFileSync(path.join(KNOWLEDGE, 'verified-' + slug(topic) + '.md'), md, 'utf-8');
+  gitSync('verified ' + topic);
   sendJSON(res, 200, { saved: good.length });
 }
 
