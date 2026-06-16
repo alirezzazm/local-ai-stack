@@ -46,6 +46,16 @@ chmod +x scripts/*.sh
 
 ---
 
+## دستیار فارسی (motaro-fa)
+یک مدل سفارشی فارسی‌زبان بر پایه‌ی Qwen، با شخصیت و قانون «همیشه فارسی جواب بده» (تعریف در [`modelfiles/motaro-fa.Modelfile`](modelfiles/motaro-fa.Modelfile)).
+
+```powershell
+ollama pull qwen2.5:3b      # مدل پایه
+./scripts/build-fa.ps1      # ساخت motaro-fa   (لینوکس/مک: ./scripts/build-fa.sh)
+ollama run motaro-fa
+```
+> نکته: مدل پایه‌ی ۳B فارسی را در حد قابل‌قبول می‌فهمد ولی گرامرش گاهی می‌لنگد. برای فارسیِ روان، روی سیستم GPU‌دار پایه را به `qwen2.5:7b` یا بزرگ‌تر تغییر بده (خط `FROM` در Modelfile).
+
 ## دیتاست آموزشی
 [`data/dataset.jsonl`](data/dataset.jsonl) — داده‌ها در قالب استاندارد chat (`messages`) برای fine-tune.
 جزئیات در [`data/README.md`](data/README.md).
