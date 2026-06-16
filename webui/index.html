@@ -13,6 +13,7 @@
     <div class="spacer"></div>
     <div id="stats" class="stats" title="مصرف منابع سیستمی که مدل روی آن اجرا می‌شود">⏳</div>
     <button type="button" id="learn-btn" class="learn-btn" title="جستجو در اینترنت و یادگیری">🌐 یادگیری</button>
+    <button type="button" id="review-btn" class="review-btn" title="بازبینی و تأیید پاسخ‌ها">✅ بازبینی</button>
     <label class="model">
       مدل:
       <input id="model" value="daz" title="نام مدل متنی در Ollama" />
@@ -57,6 +58,24 @@
     <img id="attach-thumb" alt="" />
     <span id="attach-name"></span>
     <button id="attach-remove" title="حذف عکس">✕</button>
+  </div>
+
+  <!-- Review / verify panel -->
+  <div id="review-overlay" class="overlay hidden">
+    <div class="panel">
+      <div class="panel-head">
+        <b>✅ بازبینی و تأیید پاسخ‌ها</b>
+        <button type="button" id="review-close" title="بستن">✕</button>
+      </div>
+      <p class="hint">یک موضوعِ آموخته را انتخاب کن؛ DAZ پرسش و پاسخ می‌سازد. هر پاسخ را درست/غلط بزن و در صورت نیاز اصلاح کن. تأییدشده‌ها ذخیره و به دیتاست آموزشی اضافه می‌شوند.</p>
+      <div class="learn-row">
+        <select id="review-topic"></select>
+        <button type="button" id="review-gen">تولید پرسش‌ها</button>
+      </div>
+      <div id="review-status" class="learn-status"></div>
+      <div id="review-list"></div>
+      <button type="button" id="review-save" class="review-save hidden">💾 ذخیره‌ی تأییدشده‌ها</button>
+    </div>
   </div>
 
   <form id="composer">

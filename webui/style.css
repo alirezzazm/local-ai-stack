@@ -79,6 +79,28 @@ main {
   padding: 6px 12px; cursor: pointer; font-family: inherit; font-size: 13px; font-weight: 700;
 }
 .learn-btn:hover { filter: brightness(1.1); }
+.review-btn {
+  background: #7c3aed; color: #fff; border: none; border-radius: 8px;
+  padding: 6px 12px; cursor: pointer; font-family: inherit; font-size: 13px; font-weight: 700;
+}
+.review-btn:hover { filter: brightness(1.1); }
+#review-topic {
+  flex: 1; background: var(--bg); color: var(--text); border: 1px solid var(--border);
+  border-radius: 8px; padding: 10px 12px; font-family: inherit; font-size: 14px;
+}
+#review-gen { background: #7c3aed; color: #fff; border: none; border-radius: 8px; padding: 0 16px; cursor: pointer; font-family: inherit; font-weight: 700; }
+.qa-item { border: 1px solid var(--border); border-radius: 10px; padding: 12px; margin-top: 10px; }
+.qa-item .q { font-weight: 700; margin-bottom: 8px; }
+.qa-item textarea {
+  width: 100%; background: var(--bg); color: var(--text); border: 1px solid var(--border);
+  border-radius: 8px; padding: 8px 10px; font-family: inherit; font-size: 14px; resize: vertical; line-height: 1.7;
+}
+.qa-actions { display: flex; gap: 8px; margin-top: 8px; }
+.qa-actions button { border: 1px solid var(--border); background: var(--bg); color: var(--text); border-radius: 8px; padding: 5px 12px; cursor: pointer; font-family: inherit; font-size: 13px; }
+.qa-actions button.ok-on { background: #16a34a; color: #fff; border: none; }
+.qa-actions button.no-on { background: #dc2626; color: #fff; border: none; }
+.review-save { margin-top: 14px; width: 100%; background: #16a34a; color: #fff; border: none; border-radius: 10px; padding: 12px; cursor: pointer; font-family: inherit; font-weight: 700; font-size: 15px; }
+.review-save.hidden { display: none; }
 .overlay {
   position: fixed; inset: 0; background: rgba(0,0,0,.6);
   display: flex; align-items: center; justify-content: center; z-index: 10;

@@ -233,3 +233,66 @@ async function learn() {
 }
 $('learn-go').onclick = learn;
 $('learn-topic').addEventListener('keydown', (e) => { if (e.key === 'Enter') learn(); });
+
+// ---------- review & verify ----------
+let quizItems = [];   // {q, a, ok}
+async function openReview() {
+  $('review-overlay').classList.remove('hidden');
+  $('review-list').innerHTML = ''; $('review-save').classList.add('hidden'); $('review-status').textContent = '';
+  const sel = $('review-topic'); sel.innerHTML = '';
+  try {
+    const j = await (await fetch('/api/knowledge')).json();
+    const topics = [...new Set(j.items.map(i => i.topic.replace(/ \(تأییدشده\)$/, '')))];
+    if (!topics.length) { sel.innerHTML = '<option>هنوز چیزی یاد نگرفته</option>'; return; }
+    for (const t of topics) { const o = document.createElement('option'); o.value = o.textContent = t; sel.appendChild(o); }
+  } catch {}
+}
+$('review-btn').onclick = openReview;
+$('review-close').onclick = () => $('review-overlay').classList.add('hidden');
+$('review-overlay').onclick = (e) => { if (e.target.id === 'review-overlay') $('review-overlay').classList.add('hidden'); };
+
+function renderQuiz() {
+  const list = $('review-list'); list.innerHTML = '';
+  quizItems.forEach((it, i) => {
+    const div = document.createElement('div'); div.className = 'qa-item';
+    const q = document.createElement('div'); q.className = 'q'; q.textContent = '❓ ' + it.q; div.appendChild(q);
+    const ta = document.createElement('textarea'); ta.rows = 2; ta.value = it.a;
+    ta.oninput = () => { it.a = ta.value; }; div.appendChild(ta);
+    const acts = document.createElement('div'); acts.className = 'qa-actions';
+    const ok = document.createElement('button'); ok.textContent = '✅ درست';
+    const no = document.createElement('button'); no.textContent = '❌ غلط';
+    const sync = () => { ok.className = it.ok === true ? 'ok-on' : ''; no.className = it.ok === false ? 'no-on' : ''; };
+    ok.onclick = () => { it.ok = true; sync(); }; no.onclick = () => { it.ok = false; sync(); };
+    acts.appendChild(ok); acts.appendChild(no); div.appendChild(acts);
+    list.appendChild(div); sync();
+  });
+  $('review-save').classList.toggle('hidden', !quizItems.length);
+}
+
+async function genQuiz() {
+  const topic = $('review-topic').value;
+  if (!topic) return;
+  $('review-status').textContent = '🧠 DAZ در حال ساختن پرسش‌ها… (روی CPU کمی طول می‌کشد)';
+  $('review-list').innerHTML = ''; $('review-save').classList.add('hidden');
+  try {
+    const j = await (await fetch('/api/quiz', { method: 'POST',
+      headers: { 'content-type': 'application/json' }, body: JSON.stringify({ topic }) })).json();
+    if (j.error) { $('review-status').textContent = '⚠️ ' + j.error; return; }
+    quizItems = j.items.map(it => ({ ...it, ok: null }));
+    $('review-status').textContent = `پرسش‌ها آماده‌اند. هر پاسخ را بررسی، اصلاح و درست/غلط کن.`;
+    renderQuiz();
+  } catch (e) { $('review-status').textContent = '⚠️ خطا: ' + e.message; }
+}
+$('review-gen').onclick = genQuiz;
+
+async function saveVerified() {
+  const topic = $('review-topic').value;
+  const good = quizItems.filter(it => it.ok === true);
+  if (!good.length) { $('review-status').textContent = 'هیچ پاسخی به‌عنوان «درست» علامت نخورده.'; return; }
+  try {
+    const j = await (await fetch('/api/verify', { method: 'POST',
+      headers: { 'content-type': 'application/json' }, body: JSON.stringify({ topic, items: good }) })).json();
+    $('review-status').textContent = `✅ ${j.saved} پاسخ تأییدشده ذخیره شد (هم در دانش، هم در دیتاست آموزشی).`;
+  } catch (e) { $('review-status').textContent = '⚠️ خطا: ' + e.message; }
+}
+$('review-save').onclick = saveVerified;

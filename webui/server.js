@@ -130,6 +130,66 @@ function handleStats(res) {
   });
 }
 
+// find a learned topic's text by its title (frontmatter) or slug
+function findKnowledge(topic) {
+  const files = fs.existsSync(KNOWLEDGE) ? fs.readdirSync(KNOWLEDGE).filter(f => f.endsWith('.md')) : [];
+  for (const f of files) {
+    const txt = fs.readFileSync(path.join(KNOWLEDGE, f), 'utf-8');
+    const m = txt.match(/topic:\s*(.+)/);
+    if (m && m[1].trim() === topic) return txt;
+  }
+  const p = path.join(KNOWLEDGE, slug(topic) + '.md');
+  return fs.existsSync(p) ? fs.readFileSync(p, 'utf-8') : '';
+}
+
+function parseQA(text) {
+  const items = [];
+  let q = null;
+  for (const raw of text.split('\n')) {
+    const t = raw.trim();
+    const mq = t.match(/^س\s*[:：]\s*(.+)/);
+    const ma = t.match(/^ج\s*[:：]\s*(.+)/);
+    if (mq) q = mq[1].trim();
+    else if (ma && q) { items.push({ q, a: ma[1].trim() }); q = null; }
+  }
+  return items;
+}
+
+// --- /api/quiz : DAZ generates question+answer pairs about a learned topic ---
+async function handleQuiz(req, res) {
+  const { topic } = JSON.parse(await readBody(req) || '{}');
+  const know = findKnowledge(topic);
+  if (!know) return sendJSON(res, 200, { error: 'برای این موضوع دانشی پیدا نشد.' });
+  const out = await askDaz(
+    `بر اساس دانشِ زیر درباره‌ی «${topic}»، دقیقاً ۵ پرسش و پاسخ کوتاه فارسی بساز. ` +
+    `هر مورد دقیقاً در این قالب (بدون چیز اضافه):\nس: متن پرسش\nج: متن پاسخ\n\nدانش:\n${know.slice(0, 4000)}`);
+  const items = parseQA(out);
+  if (!items.length) return sendJSON(res, 200, { error: 'تولید پرسش ناموفق بود؛ دوباره تلاش کن.', raw: out });
+  sendJSON(res, 200, { topic, items });
+}
+
+// --- /api/verify : save the user-confirmed Q&A as verified knowledge + training data ---
+const DATASET = path.join(DIR, '..', 'data', 'dataset.jsonl');
+const SYS = 'تو «DAZ» هستی، یک دستیار هوش مصنوعی فارسی‌زبان، دقیق و مودب. همیشه فارسی پاسخ بده.';
+async function handleVerify(req, res) {
+  const { topic, items } = JSON.parse(await readBody(req) || '{}');
+  const good = (items || []).filter(it => it.ok && it.q && it.a);
+  if (!good.length) return sendJSON(res, 200, { saved: 0 });
+  // 1) append to the fine-tune dataset
+  fs.mkdirSync(path.dirname(DATASET), { recursive: true });
+  const lines = good.map(it => JSON.stringify({ messages: [
+    { role: 'system', content: SYS },
+    { role: 'user', content: it.q },
+    { role: 'assistant', content: it.a },
+  ] })).join('\n') + '\n';
+  fs.appendFileSync(DATASET, lines, 'utf-8');
+  // 2) store as verified knowledge so RAG uses the human-approved answers
+  const md = `---\ntopic: ${topic} (تأییدشده)\ndate: ${new Date().toISOString()}\n---\n\n` +
+    good.map(it => `**س:** ${it.q}\n**ج:** ${it.a}`).join('\n\n') + '\n';
+  fs.writeFileSync(path.join(KNOWLEDGE, 'verified-' + slug(topic) + '.md'), md, 'utf-8');
+  sendJSON(res, 200, { saved: good.length });
+}
+
 // --- /api/knowledge (list) ---
 function handleKnowledge(res) {
   const files = fs.existsSync(KNOWLEDGE) ? fs.readdirSync(KNOWLEDGE).filter(f => f.endsWith('.md')) : [];
@@ -159,6 +219,8 @@ async function handleContext(req, res) {
 const server = http.createServer(async (req, res) => {
   try {
     if (req.url.startsWith('/api/learn')) return await handleLearn(req, res);
+    if (req.url.startsWith('/api/quiz')) return await handleQuiz(req, res);
+    if (req.url.startsWith('/api/verify')) return await handleVerify(req, res);
     if (req.url.startsWith('/api/stats')) return handleStats(res);
     if (req.url.startsWith('/api/knowledge')) return handleKnowledge(res);
     if (req.url.startsWith('/api/context')) return await handleContext(req, res);
