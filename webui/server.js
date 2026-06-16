@@ -65,20 +65,42 @@ async function askDaz(prompt) {
 }
 
 // --- /api/learn ---
+// Body: { topic, url?, text? }
+//   text → learn from pasted text / uploaded file
+//   url  → learn from one specific page
+//   else → web search the topic (default)
 async function handleLearn(req, res) {
-  const { topic } = JSON.parse(await readBody(req) || '{}');
-  if (!topic) return sendJSON(res, 400, { error: 'topic required' });
-  const results = await searchWeb(topic, 3);
-  if (!results.length) return sendJSON(res, 200, { error: 'هیچ نتیجه‌ای پیدا نشد.' });
+  const { topic, url, text } = JSON.parse(await readBody(req) || '{}');
+  let title = (topic || '').trim();
   let corpus = '';
-  for (const r of results) corpus += `\n[منبع: ${r.title}]\n${await fetchText(r.url)}\n`;
+  let sources = [];
+
+  if (text && text.trim()) {                       // from pasted text / file
+    corpus = text.slice(0, 12000);
+    sources = [{ title: 'متن واردشده توسط کاربر', url: '' }];
+    if (!title) title = text.trim().slice(0, 40);
+  } else if (url && url.trim()) {                  // from a single URL
+    const body = await fetchText(url.trim());
+    if (!body) return sendJSON(res, 200, { error: 'نتوانستم صفحه را بخوانم.' });
+    corpus = body;
+    sources = [{ title: url.trim(), url: url.trim() }];
+    if (!title) title = url.trim().slice(0, 50);
+  } else if (title) {                              // from a web search
+    const results = await searchWeb(title, 5);     // more pages than before (3 → 5)
+    if (!results.length) return sendJSON(res, 200, { error: 'هیچ نتیجه‌ای پیدا نشد.' });
+    for (const r of results) corpus += `\n[منبع: ${r.title}]\n${await fetchText(r.url)}\n`;
+    sources = results;
+  } else {
+    return sendJSON(res, 400, { error: 'موضوع، لینک یا متن لازم است.' });
+  }
+
   const summary = await askDaz(
-    `بر اساس متن‌های زیر درباره‌ی موضوع «${topic}»، یک خلاصه‌ی دقیق و آموزنده به زبان فارسی بنویس ` +
-    `(چند بند کوتاه، فقط حقایق مهم):\n${corpus.slice(0, 6000)}`);
-  const sources = results.map(r => `- ${r.title}: ${r.url}`).join('\n');
-  const md = `---\ntopic: ${topic}\ndate: ${new Date().toISOString()}\n---\n\n${summary}\n\n## منابع\n${sources}\n`;
-  fs.writeFileSync(path.join(KNOWLEDGE, slug(topic) + '.md'), md, 'utf-8');
-  sendJSON(res, 200, { topic, summary, sources: results });
+    `بر اساس متن‌های زیر درباره‌ی «${title}»، یک خلاصه‌ی دقیق و آموزنده به زبان فارسی بنویس ` +
+    `(چند بند کوتاه، فقط حقایق مهم و درست):\n${corpus.slice(0, 8000)}`);
+  const srcMd = sources.map(s => `- ${s.title}${s.url ? ': ' + s.url : ''}`).join('\n');
+  const md = `---\ntopic: ${title}\ndate: ${new Date().toISOString()}\n---\n\n${summary}\n\n## منابع\n${srcMd}\n`;
+  fs.writeFileSync(path.join(KNOWLEDGE, slug(title) + '.md'), md, 'utf-8');
+  sendJSON(res, 200, { topic: title, summary, sources });
 }
 
 // --- /api/stats (live system usage of the host running the model) ---

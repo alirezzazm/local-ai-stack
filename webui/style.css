@@ -98,6 +98,14 @@ main {
 }
 .learn-row button { background: #16a34a; color: #fff; border: none; border-radius: 8px; padding: 0 16px; cursor: pointer; font-family: inherit; font-weight: 700; }
 .learn-row button:disabled { opacity: .5; cursor: default; }
+.learn-extra {
+  width: 100%; margin-top: 8px; background: var(--bg); color: var(--text);
+  border: 1px solid var(--border); border-radius: 8px; padding: 10px 12px;
+  font-family: inherit; font-size: 14px; resize: vertical;
+}
+.learn-file-row { display: flex; gap: 8px; align-items: flex-start; }
+.learn-file-row textarea { flex: 1; }
+.learn-file-row button { margin-top: 8px; background: var(--bg); color: var(--text); border: 1px solid var(--border); border-radius: 8px; padding: 8px 12px; cursor: pointer; font-family: inherit; white-space: nowrap; }
 .learn-status { color: var(--muted); font-size: 13px; margin: 10px 0; min-height: 18px; }
 .learn-result { white-space: pre-wrap; line-height: 1.8; font-size: 14px; }
 .learn-result a { color: #60a5fa; }

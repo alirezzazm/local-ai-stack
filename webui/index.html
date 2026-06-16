@@ -35,10 +35,16 @@
         <b>🌐 جستجو و یادگیری از اینترنت</b>
         <button type="button" id="learn-close" title="بستن">✕</button>
       </div>
-      <p class="hint">یک موضوع بنویس؛ DAZ در اینترنت جستجو می‌کند، می‌خواند، خلاصه می‌سازد و یاد می‌گیرد.</p>
+      <p class="hint">یک راه را انتخاب کن: جستجوی موضوع در اینترنت، یا یک لینک مستقیم، یا یک فایل/متن.</p>
       <div class="learn-row">
-        <input id="learn-topic" placeholder="مثلاً: تاریخچه‌ی خودروسازی ایران" />
-        <button type="button" id="learn-go">جستجو و یادگیری</button>
+        <input id="learn-topic" placeholder="موضوع (مثلاً: تاریخچه‌ی خودروسازی ایران)" />
+        <button type="button" id="learn-go">یادگیری</button>
+      </div>
+      <input id="learn-url" class="learn-extra" placeholder="یا یک لینک مستقیم: https://…" />
+      <div class="learn-file-row">
+        <textarea id="learn-text" class="learn-extra" rows="2" placeholder="یا متن دلخواه را اینجا بچسبان…"></textarea>
+        <button type="button" id="learn-file-btn" title="بارگذاری فایل متنی">📄 فایل</button>
+        <input type="file" id="learn-file" accept=".txt,.md,.csv,.json,.log" hidden />
       </div>
       <div id="learn-status" class="learn-status"></div>
       <div id="learn-result" class="learn-result"></div>

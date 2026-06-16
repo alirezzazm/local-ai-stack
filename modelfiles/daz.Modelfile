@@ -1,8 +1,10 @@
 # Modelfile — DAZ، یک دستیار فارسی‌زبان بر پایه‌ی Qwen
 # ساخت:   ollama create daz -f modelfiles/daz.Modelfile
 # اجرا:    ollama run daz
+# پایه ۷B کیفیت فارسی و خلاصه‌سازی بهتری دارد؛ روی CPU کندتر است.
+# برای سیستم ضعیف می‌توانی این خط را به qwen2.5:3b برگردانی.
 
-FROM qwen2.5:3b
+FROM qwen2.5:7b
 
 # شخصیت و قوانین رفتاری مدل
 SYSTEM """

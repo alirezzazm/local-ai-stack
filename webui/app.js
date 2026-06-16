@@ -194,21 +194,38 @@ $('learn-btn').onclick = () => { $('learn-overlay').classList.remove('hidden'); 
 $('learn-close').onclick = () => $('learn-overlay').classList.add('hidden');
 $('learn-overlay').onclick = (e) => { if (e.target.id === 'learn-overlay') $('learn-overlay').classList.add('hidden'); };
 
+// load a text file into the textarea
+$('learn-file-btn').onclick = () => $('learn-file').click();
+$('learn-file').onchange = (e) => {
+  const f = e.target.files[0];
+  if (!f) return;
+  const r = new FileReader();
+  r.onload = () => {
+    $('learn-text').value = r.result;
+    if (!$('learn-topic').value.trim()) $('learn-topic').value = f.name.replace(/\.[^.]+$/, '');
+  };
+  r.readAsText(f);
+};
+
 async function learn() {
   const topic = $('learn-topic').value.trim();
-  if (!topic) return;
+  const url = $('learn-url').value.trim();
+  const text = $('learn-text').value.trim();
+  if (!topic && !url && !text) return;
   const go = $('learn-go'), status = $('learn-status'), result = $('learn-result');
   go.disabled = true; result.textContent = '';
-  status.textContent = '🔎 در حال جستجو در اینترنت و خواندن صفحات… (ممکن است کمی طول بکشد)';
+  status.textContent = text ? '📖 در حال خواندن متن و خلاصه‌سازی…'
+    : url ? '🌐 در حال خواندن لینک و خلاصه‌سازی…'
+    : '🔎 در حال جستجو در اینترنت و خواندن صفحات… (ممکن است کمی طول بکشد)';
   try {
     const j = await (await fetch('/api/learn', { method: 'POST',
-      headers: { 'content-type': 'application/json' }, body: JSON.stringify({ topic }) })).json();
+      headers: { 'content-type': 'application/json' }, body: JSON.stringify({ topic, url, text }) })).json();
     if (j.error) { status.textContent = '⚠️ ' + j.error; return; }
     status.textContent = '✅ یاد گرفتم و ذخیره کردم. حالا می‌توانی درباره‌اش بپرسی.';
     let html = j.summary + '\n\n— منابع —\n';
     for (const s of (j.sources || [])) html += `• ${s.title}\n`;
     result.textContent = html;
-    $('learn-topic').value = '';
+    $('learn-topic').value = ''; $('learn-url').value = ''; $('learn-text').value = '';
     refreshKB();
   } catch (e) {
     status.textContent = '⚠️ خطا: ' + e.message;
