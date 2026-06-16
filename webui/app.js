@@ -1,16 +1,19 @@
 // DAZ chat UI — talks to Ollama through the local proxy (/api/chat).
-// --- auth: attach the saved token to every /api request ---
+// --- connect to any DAZ server: rewrite /api → configured server + attach token ---
 const _fetch = window.fetch.bind(window);
+const dazServer = () => (localStorage.getItem('daz_server') || '').replace(/\/$/, '');
 window.fetch = (url, opts = {}) => {
   if (typeof url === 'string' && url.startsWith('/api/')) {
     opts.headers = { ...(opts.headers || {}), 'x-daz-token': localStorage.getItem('daz_token') || '' };
+    const base = dazServer();
+    if (base) url = base + url;            // talk to a remote server instead of same-origin
   }
   return _fetch(url, opts);
 };
-// ask for the token once if the server requires one
+// on load: figure out which server, and ask for a token once if required
 (async () => {
   try {
-    const p = await (await _fetch('/api/ping')).json();
+    const p = await (await window.fetch('/api/ping')).json();
     if (p.auth && !localStorage.getItem('daz_token')) {
       const t = prompt('این DAZ با رمز محافظت می‌شود. توکن دسترسی را وارد کن:');
       if (t) localStorage.setItem('daz_token', t.trim());
@@ -233,6 +236,16 @@ loadPersona();
 $('persona-btn').onclick = () => $('persona-overlay').classList.remove('hidden');
 $('persona-close').onclick = () => $('persona-overlay').classList.add('hidden');
 $('persona-overlay').onclick = (e) => { if (e.target.id === 'persona-overlay') $('persona-overlay').classList.add('hidden'); };
+// server connection settings (client-side, lets one app point at any DAZ server)
+$('srv-url').value = localStorage.getItem('daz_server') || '';
+$('srv-token').value = localStorage.getItem('daz_token') || '';
+$('srv-save').onclick = () => {
+  localStorage.setItem('daz_server', $('srv-url').value.trim());
+  localStorage.setItem('daz_token', $('srv-token').value.trim());
+  $('persona-status').textContent = '🔌 ذخیره شد. در حال اتصال…';
+  setTimeout(() => location.reload(), 600);
+};
+
 $('persona-save').onclick = async () => {
   const body = { name: $('p-name').value.trim(), address: $('p-address').value.trim(),
     style: $('p-style').value, notes: $('p-notes').value.trim() };

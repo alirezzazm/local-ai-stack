@@ -366,6 +366,11 @@ async function handleContext(req, res) {
 
 const server = http.createServer(async (req, res) => {
   try {
+    // CORS — let separately-hosted clients (installed app / other origin) connect
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    res.setHeader('Access-Control-Allow-Headers', 'content-type, x-daz-token');
+    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+    if (req.method === 'OPTIONS') { res.writeHead(204); return res.end(); }
     // tells the client whether a token is required (no auth needed for this)
     if (req.url.startsWith('/api/ping')) return sendJSON(res, 200, { ok: true, auth: !!TOKEN });
     // auth gate: when DAZ_TOKEN is set, every /api/* call must present it

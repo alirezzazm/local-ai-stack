@@ -1,0 +1,18 @@
+{
+  "expo": {
+    "name": "DAZ",
+    "slug": "daz-mobile",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "dark",
+    "backgroundColor": "#0f1419",
+    "android": {
+      "package": "com.daz.mobile",
+      "permissions": ["RECORD_AUDIO", "INTERNET"]
+    },
+    "ios": {
+      "bundleIdentifier": "com.daz.mobile",
+      "infoPlist": { "NSMicrophoneUsageDescription": "برای ورودی صوتی" }
+    }
+  }
+}
