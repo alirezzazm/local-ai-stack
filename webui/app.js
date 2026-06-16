@@ -59,6 +59,7 @@ async function send() {
   }
 
   let full = '';
+  let stats = null;
   try {
     const resp = await fetch('/api/chat', {
       method: 'POST',
@@ -86,7 +87,16 @@ async function send() {
           botSpan.textContent = full;
           chat.scrollTop = chat.scrollHeight;
         }
+        if (j.done && j.eval_count) stats = j;
       }
+    }
+    // show generation speed under the answer
+    if (stats && stats.eval_duration) {
+      const tps = (stats.eval_count / (stats.eval_duration / 1e9)).toFixed(1);
+      const meta = document.createElement('div');
+      meta.className = 'meta';
+      meta.textContent = `⚡ ${tps} توکن/ثانیه · ${stats.eval_count} توکن`;
+      botSpan.parentElement.appendChild(meta);
     }
   } catch (e) {
     botSpan.parentElement.classList.remove('typing');
@@ -185,7 +195,14 @@ async function refreshKB() {
     if (!j.items.length) { ul.innerHTML = '<li style="color:var(--muted)">هنوز چیزی یاد نگرفته.</li>'; return; }
     for (const it of j.items) {
       const li = document.createElement('li');
-      li.textContent = '📄 ' + it.topic;
+      const span = document.createElement('span'); span.textContent = '📄 ' + it.topic; li.appendChild(span);
+      const del = document.createElement('button'); del.className = 'kb-del'; del.textContent = '🗑'; del.title = 'فراموش کن';
+      del.onclick = async () => {
+        if (!confirm('این آموخته حذف شود؟ «' + it.topic + '»')) return;
+        await fetch('/api/forget', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ file: it.file }) });
+        refreshKB();
+      };
+      li.appendChild(del);
       ul.appendChild(li);
     }
   } catch {}
@@ -194,38 +211,45 @@ $('learn-btn').onclick = () => { $('learn-overlay').classList.remove('hidden'); 
 $('learn-close').onclick = () => $('learn-overlay').classList.add('hidden');
 $('learn-overlay').onclick = (e) => { if (e.target.id === 'learn-overlay') $('learn-overlay').classList.add('hidden'); };
 
-// load a text file into the textarea
+// load a text or PDF file
+let pendingPdf = null;
 $('learn-file-btn').onclick = () => $('learn-file').click();
 $('learn-file').onchange = (e) => {
   const f = e.target.files[0];
   if (!f) return;
+  pendingPdf = null;
+  if (!$('learn-topic').value.trim()) $('learn-topic').value = f.name.replace(/\.[^.]+$/, '');
   const r = new FileReader();
-  r.onload = () => {
-    $('learn-text').value = r.result;
-    if (!$('learn-topic').value.trim()) $('learn-topic').value = f.name.replace(/\.[^.]+$/, '');
-  };
-  r.readAsText(f);
+  if (/\.pdf$/i.test(f.name)) {
+    r.onload = () => { pendingPdf = r.result.split(',')[1]; $('learn-text').value = '📑 PDF آماده شد: ' + f.name; };
+    r.readAsDataURL(f);
+  } else {
+    r.onload = () => { $('learn-text').value = r.result; };
+    r.readAsText(f);
+  }
 };
 
 async function learn() {
   const topic = $('learn-topic').value.trim();
   const url = $('learn-url').value.trim();
-  const text = $('learn-text').value.trim();
-  if (!topic && !url && !text) return;
+  const text = pendingPdf ? '' : $('learn-text').value.trim();
+  const pdf = pendingPdf;
+  if (!topic && !url && !text && !pdf) return;
   const go = $('learn-go'), status = $('learn-status'), result = $('learn-result');
   go.disabled = true; result.textContent = '';
-  status.textContent = text ? '📖 در حال خواندن متن و خلاصه‌سازی…'
+  status.textContent = pdf ? '📑 در حال استخراج متن PDF و خلاصه‌سازی…'
+    : text ? '📖 در حال خواندن متن و خلاصه‌سازی…'
     : url ? '🌐 در حال خواندن لینک و خلاصه‌سازی…'
     : '🔎 در حال جستجو در اینترنت و خواندن صفحات… (ممکن است کمی طول بکشد)';
   try {
     const j = await (await fetch('/api/learn', { method: 'POST',
-      headers: { 'content-type': 'application/json' }, body: JSON.stringify({ topic, url, text }) })).json();
+      headers: { 'content-type': 'application/json' }, body: JSON.stringify({ topic, url, text, pdf }) })).json();
     if (j.error) { status.textContent = '⚠️ ' + j.error; return; }
     status.textContent = '✅ یاد گرفتم و ذخیره کردم. حالا می‌توانی درباره‌اش بپرسی.';
     let html = j.summary + '\n\n— منابع —\n';
     for (const s of (j.sources || [])) html += `• ${s.title}\n`;
     result.textContent = html;
-    $('learn-topic').value = ''; $('learn-url').value = ''; $('learn-text').value = '';
+    $('learn-topic').value = ''; $('learn-url').value = ''; $('learn-text').value = ''; pendingPdf = null;
     refreshKB();
   } catch (e) {
     status.textContent = '⚠️ خطا: ' + e.message;

@@ -9,6 +9,7 @@ const http = require('http');
 const fs = require('fs');
 const path = require('path');
 const os = require('os');
+const zlib = require('zlib');
 const { exec } = require('child_process');
 
 const PORT = process.env.PORT || 8080;
@@ -41,6 +42,31 @@ function gitSync(msg) {
 
 const readBody = (req) => new Promise((res) => { let b = ''; req.on('data', c => b += c); req.on('end', () => res(b)); });
 const sendJSON = (res, code, obj) => { res.writeHead(code, { 'content-type': 'application/json; charset=utf-8' }); res.end(JSON.stringify(obj)); };
+// best-effort PDF text extraction (pure Node, via zlib). Works for many text
+// PDFs; CID-encoded / Persian-font PDFs may not extract cleanly.
+function unescapePdf(s) { return s.replace(/\\([nrt()\\])/g, (m, c) => ({ n: '\n', r: '\r', t: '\t' }[c] || c)); }
+function extractPdfText(buf) {
+  const str = buf.toString('latin1');
+  let text = '', pos = 0;
+  while ((pos = str.indexOf('stream', pos)) !== -1) {
+    let start = pos + 6;
+    if (str[start] === '\r') start++;
+    if (str[start] === '\n') start++;
+    const end = str.indexOf('endstream', start);
+    if (end === -1) break;
+    let data = buf.slice(start, end);
+    try { data = zlib.inflateSync(data); } catch { try { data = zlib.inflateRawSync(data); } catch {} }
+    const c = data.toString('latin1');
+    let m;
+    const tj = /\(((?:[^()\\]|\\.)*)\)\s*Tj/g;
+    while ((m = tj.exec(c))) text += unescapePdf(m[1]);
+    const tjArr = /\[((?:[^\]])*)\]\s*TJ/g;
+    while ((m = tjArr.exec(c))) { let p; const inner = /\(((?:[^()\\]|\\.)*)\)/g; while ((p = inner.exec(m[1]))) text += unescapePdf(p[1]); text += ' '; }
+    pos = end + 9;
+  }
+  return text.replace(/\s+/g, ' ').trim();
+}
+
 const stripHtml = (html) => html
   .replace(/<script[\s\S]*?<\/script>/gi, ' ').replace(/<style[\s\S]*?<\/style>/gi, ' ')
   .replace(/<[^>]+>/g, ' ').replace(/&nbsp;/g, ' ').replace(/&amp;/g, '&')
@@ -89,12 +115,18 @@ async function askDaz(prompt) {
 //   url  → learn from one specific page
 //   else → web search the topic (default)
 async function handleLearn(req, res) {
-  const { topic, url, text } = JSON.parse(await readBody(req) || '{}');
+  const { topic, url, text, pdf } = JSON.parse(await readBody(req) || '{}');
   let title = (topic || '').trim();
   let corpus = '';
   let sources = [];
 
-  if (text && text.trim()) {                       // from pasted text / file
+  if (pdf) {                                        // from an uploaded PDF
+    const extracted = extractPdfText(Buffer.from(pdf, 'base64'));
+    if (extracted.length < 20) return sendJSON(res, 200, { error: 'از این PDF متنی استخراج نشد (شاید اسکن‌شده یا فونت فارسی باشد).' });
+    corpus = extracted.slice(0, 12000);
+    sources = [{ title: 'فایل PDF واردشده', url: '' }];
+    if (!title) title = 'سند PDF';
+  } else if (text && text.trim()) {                // from pasted text / file
     corpus = text.slice(0, 12000);
     sources = [{ title: 'متن واردشده توسط کاربر', url: '' }];
     if (!title) title = text.trim().slice(0, 40);
@@ -211,6 +243,16 @@ async function handleVerify(req, res) {
   sendJSON(res, 200, { saved: good.length });
 }
 
+// --- /api/forget : delete a learned knowledge file ---
+async function handleForget(req, res) {
+  const { file } = JSON.parse(await readBody(req) || '{}');
+  if (!file || file.includes('..') || file.includes('/') || file.includes('\\'))
+    return sendJSON(res, 400, { error: 'نام فایل نامعتبر است.' });
+  const fp = path.join(KNOWLEDGE, file);
+  if (fs.existsSync(fp)) { fs.unlinkSync(fp); gitSync('forget ' + file); }
+  sendJSON(res, 200, { ok: true });
+}
+
 // --- /api/knowledge (list) ---
 function handleKnowledge(res) {
   const files = fs.existsSync(KNOWLEDGE) ? fs.readdirSync(KNOWLEDGE).filter(f => f.endsWith('.md')) : [];
@@ -242,6 +284,7 @@ const server = http.createServer(async (req, res) => {
     if (req.url.startsWith('/api/learn')) return await handleLearn(req, res);
     if (req.url.startsWith('/api/quiz')) return await handleQuiz(req, res);
     if (req.url.startsWith('/api/verify')) return await handleVerify(req, res);
+    if (req.url.startsWith('/api/forget')) return await handleForget(req, res);
     if (req.url.startsWith('/api/stats')) return handleStats(res);
     if (req.url.startsWith('/api/knowledge')) return handleKnowledge(res);
     if (req.url.startsWith('/api/context')) return await handleContext(req, res);
