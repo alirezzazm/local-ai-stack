@@ -80,11 +80,17 @@ main {
   padding: 6px 12px; cursor: pointer; font-family: inherit; font-size: 13px; font-weight: 700;
 }
 .learn-btn:hover { filter: brightness(1.1); }
-.review-btn {
+.review-btn, .persona-btn {
   background: #7c3aed; color: #fff; border: none; border-radius: 8px;
   padding: 6px 12px; cursor: pointer; font-family: inherit; font-size: 13px; font-weight: 700;
 }
-.review-btn:hover { filter: brightness(1.1); }
+.persona-btn { background: #0ea5e9; }
+.review-btn:hover, .persona-btn:hover { filter: brightness(1.1); }
+.field { display: block; margin-top: 12px; font-size: 13px; color: var(--muted); }
+.field input, .field select, .field textarea {
+  display: block; width: 100%; margin-top: 6px; background: var(--bg); color: var(--text);
+  border: 1px solid var(--border); border-radius: 8px; padding: 9px 12px; font-family: inherit; font-size: 14px; resize: vertical;
+}
 #review-topic {
   flex: 1; background: var(--bg); color: var(--text); border: 1px solid var(--border);
   border-radius: 8px; padding: 10px 12px; font-family: inherit; font-size: 14px;

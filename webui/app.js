@@ -47,16 +47,18 @@ async function send() {
   botSpan.parentElement.classList.add('typing');
   botSpan.textContent = '…';
 
-  // RAG: pull any learned knowledge relevant to this question
-  let sendMessages = history;
+  // build leading system messages: persona (who DAZ is) + any relevant learned knowledge
+  const sys = [];
+  if (window.__persona) sys.push({ role: 'system', content: window.__persona });
   if (!hasImage && text) {
     try {
       const c = await (await fetch('/api/context', { method: 'POST',
         headers: { 'content-type': 'application/json' }, body: JSON.stringify({ query: text }) })).json();
-      if (c.context) sendMessages = [{ role: 'system',
-        content: 'از دانشِ زیر که قبلاً یاد گرفته‌ای برای پاسخ استفاده کن:\n' + c.context }, ...history];
+      if (c.context) sys.push({ role: 'system',
+        content: 'از دانشِ زیر که قبلاً یاد گرفته‌ای برای پاسخ استفاده کن:\n' + c.context });
     } catch {}
   }
+  const sendMessages = sys.length ? [...sys, ...history] : history;
 
   let full = '';
   let stats = null;
@@ -171,6 +173,35 @@ input.addEventListener('keydown', (e) => {
 $('composer').addEventListener('submit', (e) => { e.preventDefault(); send(); });
 
 setupMic();
+
+// ---------- persona (personal Jarvis identity) ----------
+async function loadPersona() {
+  try {
+    const j = await (await fetch('/api/persona')).json();
+    window.__persona = j.prompt || '';
+    if (j.persona) {
+      $('p-name').value = j.persona.name || '';
+      $('p-address').value = j.persona.address || '';
+      $('p-style').value = j.persona.style || 'jarvis';
+      $('p-notes').value = j.persona.notes || '';
+    }
+  } catch {}
+}
+loadPersona();
+$('persona-btn').onclick = () => $('persona-overlay').classList.remove('hidden');
+$('persona-close').onclick = () => $('persona-overlay').classList.add('hidden');
+$('persona-overlay').onclick = (e) => { if (e.target.id === 'persona-overlay') $('persona-overlay').classList.add('hidden'); };
+$('persona-save').onclick = async () => {
+  const body = { name: $('p-name').value.trim(), address: $('p-address').value.trim(),
+    style: $('p-style').value, notes: $('p-notes').value.trim() };
+  $('persona-status').textContent = 'در حال ذخیره…';
+  try {
+    const j = await (await fetch('/api/persona', { method: 'POST',
+      headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) })).json();
+    window.__persona = j.prompt || '';
+    $('persona-status').textContent = '✅ ذخیره شد. از همین حالا DAZ این‌طور رفتار می‌کند.';
+  } catch (e) { $('persona-status').textContent = '⚠️ خطا: ' + e.message; }
+};
 
 // ---------- live system usage ----------
 function barClass(p) { return p >= 85 ? 'bar hot' : p >= 60 ? 'bar warn' : 'bar'; }

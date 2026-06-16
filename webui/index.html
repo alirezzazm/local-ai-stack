@@ -14,6 +14,7 @@
     <div id="stats" class="stats" title="مصرف منابع سیستمی که مدل روی آن اجرا می‌شود">⏳</div>
     <button type="button" id="learn-btn" class="learn-btn" title="جستجو در اینترنت و یادگیری">🌐 یادگیری</button>
     <button type="button" id="review-btn" class="review-btn" title="بازبینی و تأیید پاسخ‌ها">✅ بازبینی</button>
+    <button type="button" id="persona-btn" class="persona-btn" title="شخصیت و پروفایل شخصی">👤 شخصیت</button>
     <label class="model">
       مدل:
       <input id="model" value="daz" title="نام مدل متنی در Ollama" />
@@ -75,6 +76,36 @@
       <div id="review-status" class="learn-status"></div>
       <div id="review-list"></div>
       <button type="button" id="review-save" class="review-save hidden">💾 ذخیره‌ی تأییدشده‌ها</button>
+    </div>
+  </div>
+
+  <!-- Persona panel -->
+  <div id="persona-overlay" class="overlay hidden">
+    <div class="panel">
+      <div class="panel-head">
+        <b>👤 شخصیت DAZ (جارویسِ تو)</b>
+        <button type="button" id="persona-close" title="بستن">✕</button>
+      </div>
+      <p class="hint">DAZ را شخصی کن: اسمت، اینکه چطور صدایت بزند، و لحنش. هر وقت خواستی عوضش کن.</p>
+      <label class="field">نام تو
+        <input id="p-name" placeholder="مثلاً: علیرضا" />
+      </label>
+      <label class="field">چطور صدایت بزند
+        <input id="p-address" list="addr-list" placeholder="قربان / علیرضا / رفیق" />
+        <datalist id="addr-list"><option value="قربان"><option value="رئیس"><option value="رفیق"></datalist>
+      </label>
+      <label class="field">شخصیت و لحن
+        <select id="p-style">
+          <option value="jarvis">جارویسی کلاسیک (آرام، باهوش، طعنه‌ی مودبانه)</option>
+          <option value="professional">جدی و حرفه‌ای</option>
+          <option value="warm">گرم و صمیمی</option>
+        </select>
+      </label>
+      <label class="field">چیزهایی که باید همیشه درباره‌ی تو بداند (اختیاری)
+        <textarea id="p-notes" rows="3" placeholder="مثلاً: من صاحب فروشگاه قطعات خودرو هستم، به پاسخ کوتاه علاقه دارم…"></textarea>
+      </label>
+      <button type="button" id="persona-save" class="review-save">💾 ذخیره‌ی شخصیت</button>
+      <div id="persona-status" class="learn-status"></div>
     </div>
   </div>
 

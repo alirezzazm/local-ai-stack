@@ -243,6 +243,40 @@ async function handleVerify(req, res) {
   sendJSON(res, 200, { saved: good.length });
 }
 
+// --- /api/persona : the owner profile + personality (makes DAZ personal) ---
+const PERSONA_FILE = path.join(REPO, 'persona.json');
+const DEFAULT_PERSONA = { name: '', address: 'قربان', style: 'jarvis', notes: '' };
+const STYLE_DESC = {
+  jarvis: 'آرام، باهوش، باوفا و با چاشنیِ طعنه‌ی مودبانه — درست مثل جارویسِ تونی استارک.',
+  professional: 'جدی، دقیق و حرفه‌ای، بدون شوخی.',
+  warm: 'گرم، صمیمی و انرژی‌بخش، مثل یک دوست.',
+};
+function loadPersona() {
+  try { return { ...DEFAULT_PERSONA, ...JSON.parse(fs.readFileSync(PERSONA_FILE, 'utf-8')) }; }
+  catch { return { ...DEFAULT_PERSONA }; }
+}
+function personaPrompt(p) {
+  const addr = p.address || 'قربان';
+  const owner = p.name || 'صاحبت';
+  return `نام تو «DAZ» است و هرگز خودت را با نام دیگری معرفی نکن. ` +
+    `تو دستیار شخصیِ هوش مصنوعیِ ${owner} هستی، مثل جارویس برای تونی استارک. ` +
+    `کاربر همان ${owner} است؛ هنگام صحبت او را با لقبِ «${addr}» صدا بزن (این لقبِ احترام برای اوست، نه نام تو). ` +
+    `لحن و شخصیت تو: ${STYLE_DESC[p.style] || STYLE_DESC.jarvis} ` +
+    `همیشه فقط فارسی پاسخ بده (نه عربی)، کوتاه و کاربردی. به ${owner} وفاداری و همیشه در خدمت او هستی.` +
+    (p.notes ? ` نکاتی که باید درباره‌ی ${owner} بدانی: ${p.notes}` : '');
+}
+async function handlePersona(req, res) {
+  if (req.method === 'POST') {
+    const p = { ...DEFAULT_PERSONA, ...JSON.parse(await readBody(req) || '{}') };
+    fs.writeFileSync(PERSONA_FILE, JSON.stringify(p, null, 2), 'utf-8');
+    exec('git add persona.json && git -c user.name="DAZ" -c user.email="daz@local" commit -m "persona update" && git push',
+      { cwd: REPO, windowsHide: true }, () => {});
+    return sendJSON(res, 200, { ok: true, prompt: personaPrompt(p) });
+  }
+  const p = loadPersona();
+  sendJSON(res, 200, { persona: p, prompt: personaPrompt(p) });
+}
+
 // --- /api/forget : delete a learned knowledge file ---
 async function handleForget(req, res) {
   const { file } = JSON.parse(await readBody(req) || '{}');
@@ -285,6 +319,7 @@ const server = http.createServer(async (req, res) => {
     if (req.url.startsWith('/api/quiz')) return await handleQuiz(req, res);
     if (req.url.startsWith('/api/verify')) return await handleVerify(req, res);
     if (req.url.startsWith('/api/forget')) return await handleForget(req, res);
+    if (req.url.startsWith('/api/persona')) return await handlePersona(req, res);
     if (req.url.startsWith('/api/stats')) return handleStats(res);
     if (req.url.startsWith('/api/knowledge')) return handleKnowledge(res);
     if (req.url.startsWith('/api/context')) return await handleContext(req, res);
