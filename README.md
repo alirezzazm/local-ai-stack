@@ -46,13 +46,13 @@ chmod +x scripts/*.sh
 
 ---
 
-## دستیار فارسی (motaro-fa)
-یک مدل سفارشی فارسی‌زبان بر پایه‌ی Qwen، با شخصیت و قانون «همیشه فارسی جواب بده» (تعریف در [`modelfiles/motaro-fa.Modelfile`](modelfiles/motaro-fa.Modelfile)).
+## دستیار فارسی (DAZ)
+یک مدل سفارشی فارسی‌زبان بر پایه‌ی Qwen، با شخصیت و قانون «همیشه فارسی جواب بده» (تعریف در [`modelfiles/daz.Modelfile`](modelfiles/daz.Modelfile)).
 
 ```powershell
 ollama pull qwen2.5:3b      # مدل پایه
-./scripts/build-fa.ps1      # ساخت motaro-fa   (لینوکس/مک: ./scripts/build-fa.sh)
-ollama run motaro-fa
+./scripts/build-fa.ps1      # ساخت DAZ   (لینوکس/مک: ./scripts/build-fa.sh)
+ollama run daz
 ```
 > نکته: مدل پایه‌ی ۳B فارسی را در حد قابل‌قبول می‌فهمد ولی گرامرش گاهی می‌لنگد. برای فارسیِ روان، روی سیستم GPU‌دار پایه را به `qwen2.5:7b` یا بزرگ‌تر تغییر بده (خط `FROM` در Modelfile).
 
