@@ -34,10 +34,14 @@ async function send() {
   const imgPreview = pendingImage ? 'data:image/*;base64,' + pendingImage : null;
   addBubble('user', text, imgPreview);
 
+  const hasImage = !!pendingImage;
   const userMsg = { role: 'user', content: text || 'این عکس را توصیف کن' };
-  if (pendingImage) userMsg.images = [pendingImage];
+  if (hasImage) userMsg.images = [pendingImage];
   history.push(userMsg);
   clearAttachment();
+
+  // when an image is attached, automatically use the vision model
+  const model = hasImage ? ($('vmodel').value.trim() || 'llava') : (modelEl.value.trim() || 'daz');
 
   const botSpan = addBubble('bot', '');
   botSpan.parentElement.classList.add('typing');
@@ -48,7 +52,7 @@ async function send() {
     const resp = await fetch('/api/chat', {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ model: modelEl.value.trim() || 'daz', messages: history, stream: true }),
+      body: JSON.stringify({ model, messages: history, stream: true }),
     });
     if (!resp.ok) throw new Error('HTTP ' + resp.status);
 
