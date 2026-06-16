@@ -1,0 +1,64 @@
+:root {
+  --bg: #0f1419;
+  --panel: #1a2027;
+  --bubble-user: #2563eb;
+  --bubble-bot: #232b35;
+  --text: #e6edf3;
+  --muted: #8b98a5;
+  --accent: #2563eb;
+  --border: #2a323c;
+}
+* { box-sizing: border-box; }
+body {
+  margin: 0; height: 100vh; display: flex; flex-direction: column;
+  background: var(--bg); color: var(--text);
+  font-family: Vazirmatn, Tahoma, system-ui, sans-serif;
+}
+header {
+  display: flex; align-items: center; gap: 12px;
+  padding: 10px 16px; background: var(--panel); border-bottom: 1px solid var(--border);
+}
+.brand { font-weight: 800; font-size: 22px; color: var(--accent); letter-spacing: 1px; }
+.sub { color: var(--muted); font-size: 13px; }
+.spacer { flex: 1; }
+header .model input {
+  width: 90px; background: var(--bg); color: var(--text);
+  border: 1px solid var(--border); border-radius: 6px; padding: 4px 8px; font-family: inherit;
+}
+header label { font-size: 13px; color: var(--muted); display: flex; align-items: center; gap: 6px; }
+
+main {
+  flex: 1; overflow-y: auto; padding: 20px; display: flex; flex-direction: column; gap: 14px;
+}
+.msg { max-width: 78%; padding: 10px 14px; border-radius: 14px; line-height: 1.7; white-space: pre-wrap; word-wrap: break-word; }
+.msg.user { align-self: flex-start; background: var(--bubble-user); color: #fff; border-bottom-right-radius: 4px; }
+.msg.bot  { align-self: flex-end;  background: var(--bubble-bot);  border-bottom-left-radius: 4px; }
+.msg img { max-width: 220px; border-radius: 8px; display: block; margin-bottom: 8px; }
+.msg.typing { color: var(--muted); font-style: italic; }
+
+.attach-bar {
+  display: flex; align-items: center; gap: 10px; padding: 8px 16px;
+  background: var(--panel); border-top: 1px solid var(--border);
+}
+.attach-bar.hidden { display: none; }
+.attach-bar img { height: 40px; border-radius: 6px; }
+.attach-bar span { color: var(--muted); font-size: 13px; flex: 1; }
+.attach-bar button { background: none; border: none; color: var(--muted); cursor: pointer; font-size: 16px; }
+
+#composer {
+  display: flex; align-items: flex-end; gap: 8px;
+  padding: 12px 16px; background: var(--panel); border-top: 1px solid var(--border);
+}
+#composer textarea {
+  flex: 1; resize: none; max-height: 140px;
+  background: var(--bg); color: var(--text); border: 1px solid var(--border);
+  border-radius: 10px; padding: 10px 12px; font-family: inherit; font-size: 15px; line-height: 1.6;
+}
+#composer button {
+  border: none; border-radius: 10px; cursor: pointer; font-size: 16px; padding: 10px 12px;
+  background: var(--bg); color: var(--text); border: 1px solid var(--border);
+}
+#composer #send { background: var(--accent); color: #fff; border: none; font-weight: 700; padding: 10px 18px; }
+#composer button:hover { filter: brightness(1.15); }
+#mic-btn.recording { background: #dc2626; color: #fff; border: none; animation: pulse 1s infinite; }
+@keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: .55; } }
